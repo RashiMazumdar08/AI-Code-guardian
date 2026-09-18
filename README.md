@@ -1,233 +1,279 @@
-# AI Code Guardian
+# 🛡️ AI Code Guardian
 
-A **multi-language, UST-driven, evidence-grounded** code analysis platform.
+> **Multi-Language, UST-Driven, Multi-Agent & Evidence-Grounded Code Security Platform**
 
-Tree-sitter parses your repository into a Unified Syntax Tree; deterministic
-engines detect security, cryptographic, dependency and configuration
-evidence; RAG supplies trusted OWASP/NIST/PQC knowledge; NVIDIA Nemotron
-reasons about context; guardrails validate every AI claim against real code
-evidence; and a deterministic risk engine produces the final assessment.
-
-**Supported languages:** Python · Java · JavaScript · TypeScript/TSX · Rust
-(additional languages are one grammar row plus one normalizer)
+AI Code Guardian is an enterprise-grade code analysis and security threat detection platform. It combines **Tree-sitter Unified Syntax Trees (UST)**, **deterministic static engines**, **LangGraph multi-agent workflows**, and **NVIDIA Nemotron LLM reasoning** with strict **evidence-validation guardrails** to deliver zero-hallucination security analysis, business intent verification, and automated vulnerability remediation.
 
 ---
 
-## Pipeline
+## 🌟 Key Capabilities & Highlights
 
-```
-Repository
-  → Repository discovery          discovery/file_walker.py
-  → Language detection            ust/parsers.py
-  → Tree-sitter parsing           ust/parsers.py
-  → UST normalization             ust/languages/*
-  → Static engines                engines/{security,quantum,business_intent}.py
-      + dependency / IaC          dependencies/, infrastructure/
-  → Shared evidence store         evidence/store.py
-  → Relevant evidence selection   reasoning/context.py
-  → RAG retrieval                 reasoning/knowledge.py
-  → NVIDIA Nemotron reasoning     reasoning/gateway.py
-  → Structured response           reasoning/schemas.py
-  → Evidence + hallucination validation   reasoning/validation.py
-  → Unified risk engine           core/unified_risk.py
-  → Recommendations
-  → Reports + dashboard           reporting/, dashboard/
-```
-
-Three properties hold throughout:
-
-1. **Deterministic detection stays deterministic.** No model decides whether
-   a vulnerability exists. Rules and the UST do that; the model reasons about
-   context.
-2. **Nothing is claimed without evidence.** Every finding cites stable
-   evidence IDs (`E12`), and an AI claim citing evidence that does not exist —
-   or contradicting the evidence it cites — is rejected, not downgraded.
-3. **Failure is partial, never total.** A missing grammar, a failing engine,
-   an unreachable API or a broken index degrades that stage alone.
+* **Unified Syntax Tree (UST) Parsing**: Language-agnostic AST normalization across **Python**, **Java**, **JavaScript**, **TypeScript/TSX**, and **Rust**, with automatic stdlib AST and regex fallback ladders.
+* **Deterministic Security Engine**: Zero-false-positive taint tracking for SQL injection, Command injection, Path traversal, Deserialization, DOM XSS, Insecure Deserialization, and Shannon entropy secret detection.
+* **Business Intent Alignment Engine**: Converts policy documents (`.pdf`, `.docx`, `.md`, `.txt`, `.xlsx`, `.csv`) into structured control rules, producing an **AST Alignment Score (0–100%)** and **WHAT / WHY / HOW** remediation guides.
+* **LangGraph Multi-Agent Orchestration**: Specialized agents (**Security**, **Business**, **Dependency/IaC**, **Orchestrator**) performing multi-hop correlated threat chain analysis linking low-level code bugs to high-value business assets.
+* **Zero-Hallucination AI Guardrails**: Every LLM claim must cite validated evidence IDs (`E12`, `E43`). Unbacked claims are strictly rejected rather than downgraded.
+* **Modern Full-Stack Experience**: Clean **FastAPI** backend with REST endpoints and a cyberpunk **Next.js** web dashboard with interactive multi-persona AI Copilot (**Developer**, **Executive**, **Red Teamer**).
 
 ---
 
-## Quick start
+## 🆕 What's New & Recent Enhancements
+
+### 1. 💬 Structured Rich Markdown & Flex Cards in AI Copilot
+* **Non-Overflowing Card Layout**: Replaced dense, wide Markdown tables with structured, responsive flex cards in the chat drawer (`ChatDrawer.tsx`).
+* **Color-Coded Severity Pills**: Automated rendering of `[CRITICAL]`, `[HIGH]`, `[MEDIUM]`, and `[LOW]` badges in dedicated visual pill tags.
+* **Mono Code Blocks & Evidence Badges**: Code snippets and file source citations are styled with dark mono code blocks and evidence source pins (`📌 Evidence Sources`).
+* **Internal Marker Sanitization**: System tags (e.g. `<<CONTEXT_START>>`) are automatically scrubbed from responses.
+
+### 2. 📊 Enriched Business Intent UI & AST Alignment Score
+* **3-Part Findings Breakdown**: Each requirement violation provides **WHAT** failed, **WHY** it poses a risk, and **HOW** to remediate it.
+* **Collapsible AI Business Impact Accordion**: Integrates the LangGraph Business Agent (`AIBusinessImpactSection.tsx`) to surface multi-hop correlated risk chains affecting business logic.
+* **Deep Linking**: Clickable chains navigate directly to the underlying technical finding in the Security tab.
+
+### 3. 🚀 Complete REST API & Agentic Scanner Service
+* FastAPI endpoints (`/api/v1/agentic_scan`, `/api/v1/business_intent`, `/api/v1/chat`, `/api/v1/scans`) for seamless integration with external IDEs, CI/CD pipelines, and web UIs.
+
+---
+
+## 🏗️ Architecture & Processing Pipeline
+
+```
+                     ┌─────────────────────────────────────────┐
+                     │          Source Code Repository         │
+                     └────────────────────┬────────────────────┘
+                                          │
+                                          ▼
+                     ┌─────────────────────────────────────────┐
+                     │ Repository Discovery & Language Parser  │ (ust/parsers.py)
+                     └────────────────────┬────────────────────┘
+                                          │
+                                          ▼
+                     ┌─────────────────────────────────────────┐
+                     │  Unified Syntax Tree (UST) Normalizer   │ (ust/languages/*)
+                     └────────────────────┬────────────────────┘
+                                          │
+                                          ▼
+ ┌───────────────────────────────────────────────────────────────────────────────────┐
+ │                               Deterministic Engines                               │
+ ├─────────────────────────┬─────────────────────────────┬───────────────────────────┤
+ │ Security Engine         │ Business Intent Engine      │ Dependency / IaC Engine   │
+ │ (Taint & Secrets)       │ (Requirement Control Rules) │ (CVE & Config Audit)      │
+ └─────────┬───────────────┴──────────────┬──────────────┴──────────────┬────────────┘
+           │                              │                             │
+           └──────────────────────────────┼─────────────────────────────┘
+                                          │
+                                          ▼
+                     ┌─────────────────────────────────────────┐
+                     │         Shared Evidence Store           │ (evidence/store.py)
+                     └────────────────────┬────────────────────┘
+                                          │
+                                          ▼
+ ┌───────────────────────────────────────────────────────────────────────────────────┐
+ │                     LangGraph Multi-Agent & RAG Layer                             │
+ ├───────────────────────────┬──────────────────────────────┬────────────────────────┤
+ │ Context Selection & RAG   │ NVIDIA Nemotron Reasoning    │ Multi-Agent Workflow   │
+ │ (FAISS + Vector Store)    │ (character budget redaction) │ (Security, Business)   │
+ └───────────────────────────┴──────────────┬───────────────┴────────────────────────┘
+                                            │
+                                            ▼
+                     ┌─────────────────────────────────────────┐
+                     │   Evidence & Hallucination Guardrails   │ (reasoning/validation.py)
+                     └────────────────────┬────────────────────┘
+                                          │
+                                          ▼
+                     ┌─────────────────────────────────────────┐
+                     │   Unified Risk Engine & Remediation     │ (core/unified_risk.py)
+                     └────────────────────┬────────────────────┘
+                                          │
+                                          ▼
+ ┌───────────────────────────────────────────────────────────────────────────────────┐
+ │                                  Output Interfaces                                │
+ ├───────────────────────────┬──────────────────────────────┬────────────────────────┤
+ │ CLI Reports               │ FastAPI Backend REST API     │ Next.js Web Dashboard  │
+ │ (JSON, SARIF, HTML, PDF)  │ (http://localhost:8000)      │ (http://localhost:3000)│
+ └───────────────────────────┴──────────────┴───────────────┴────────────────────────┘
+```
+
+---
+
+## 🧱 Key Engine Modules
+
+### 1. 🛡️ Security Engine (`guardian/engines/security.py`)
+Parses the UST to trace taint flows from untrusted inputs (sources) to dangerous execution calls (sinks).
+* **Vulnerability Types**: SQL Injection, Command Execution, Unsafe Eval, Path Traversal, Insecure Deserialization, DOM XSS, Weak Crypto, and Disabled TLS.
+* **Secret Detection**: Regex matching combined with Shannon Entropy analysis for API keys, tokens, and private keys.
+
+### 2. 📋 Business Intent & Policy Engine (`guardian/engines/business_intent.py`)
+Converts functional requirements and security policies into actionable rule structures:
+$$\text{Requirement} \longrightarrow \{\text{action}, \text{condition}, \text{required\_control}\}$$
+* **AST Control Verification**: Checks whether required authorization, input validation, or audit controls exist in the UST node of target functions.
+* **Verdicts**: `COMPLIANT`, `VIOLATION`, `PARTIAL`, `INSUFFICIENT_EVIDENCE`.
+* **Output**: Calculates overall **Alignment Score** and provides **WHAT / WHY / HOW** guides for every flagged gap.
+
+### 3. 🤖 Multi-Agent Orchestration & Guardrails (`guardian/agents/`, `guardian/llm/guardrails.py`)
+Uses LangGraph to coordinate specialized agents:
+* **Security Agent**: Deep-dives into technical code vulnerabilities.
+* **Business Agent**: Correlates technical flaws with financial, regulatory, and business operational risks.
+* **Validation Guardrails**: Validates all AI claims against physical evidence records. AI claim statuses:
+  - `DETERMINISTIC`: Verified by static rule/UST parsing.
+  - `AI_VALIDATED`: AI reasoning backed 100% by code facts and evidence IDs.
+  - `AI_SUGGESTED`: Grounded claim with partial corroboration (confidence capped at 0.6).
+  - `INSUFFICIENT_EVIDENCE`: Rejected claim (never shown as a finding).
+
+---
+
+## ⚡ Quick Start & Installation
+
+### Prerequisites
+* **Python**: 3.10 or higher
+* **Node.js**: 18.0 or higher (for web dashboard)
+* **API Key** *(Optional)*: NVIDIA API key for Nemotron LLM reasoning (`NVIDIA_API_KEY`)
+
+### 1. Installation Options
 
 ```bash
-pip install -e ".[ust]"        # core + Tree-sitter grammars (recommended)
+# Clone the repository
+git clone https://github.com/your-org/ai_features.main.git
+cd ai_features-main
 
+# Core + Tree-sitter grammars (Recommended)
+pip install -e ".[ust]"
+
+# Full installation (CLI + Streamlit + AI + Docs)
+pip install -e ".[all]"
+```
+
+**Available Install Extras**:
+
+| Extra | Description |
+|---|---|
+| `[ust]` | Recommended. Enables Tree-sitter AST grammars for maximum precision. |
+| `[ai]` | NVIDIA Nemotron gateway, local embeddings, and FAISS vector store. |
+| `[dashboard]` | Streamlit fallback UI. |
+| `[docs]` | Ingestion support for PDF, DOCX, and XLSX requirement files. |
+| `[all]` | Installs all dependencies. |
+
+---
+
+### 2. Running via Command-Line Interface (CLI)
+
+```bash
+# Basic repository security scan
 python -m guardian scan /path/to/repo --format json sarif html --out-dir reports/
+
+# Scan repository against a Business Requirement document
 python -m guardian scan /path/to/repo --requirements docs/requirements.md
-python -m guardian scan /path/to/repo --sandbox       # scan an isolated workspace copy
-python -m guardian scan /path/to/repo --knowledge     # include graph/vector knowledge summary
-python -m guardian parsers                # show grammar coverage
-python -m guardian detect /path/to/repo   # repository profile only
-python -m guardian intent  /path/to/repo  # business-domain verdict only
-```
 
-CI gating:
-
-```bash
+# CI/CD Gating (exit code 1 on High/Critical findings)
 python -m guardian scan . --format sarif --fail-on-severity High
+
+# Check tree-sitter language parser status
+python -m guardian parsers
 ```
-
-Exit code 1 when findings at or above the threshold exist; upload the
-`.sarif` to GitHub/GitLab code scanning.
-
-### Install options
-
-| Extra | Adds |
-|---|---|
-| `[ust]` | Tree-sitter grammars — **recommended**, materially better precision |
-| `[dashboard]` | Streamlit UI |
-| `[ai]` | Nemotron client + local embeddings + FAISS |
-| `[docs]` | PDF/DOCX requirement ingestion |
-| `[all]` | everything |
-
-Without `[ust]` the platform still runs: Python falls back to the stdlib
-`ast` parser (full taint analysis retained) and other languages to a regex
-scanner, with confidence scored down accordingly. `python -m guardian
-parsers` reports exactly what is available.
 
 ---
 
-## What each engine does
+### 3. Running the Full Stack (FastAPI + Next.js Dashboard)
 
-### Security engine — `guardian/engines/security.py`
-Consumes the UST, not raw lines. The flow is
-`rule → candidate evidence → contextual check → finding`, so a match alone
-is not a finding:
-
-```python
-cursor.execute(query)                 # evidence: a database operation
-q = "SELECT ... " + user_input        # evidence: taint flow into it
-                                      # → SQL Injection finding, citing both
-cursor.execute("... = %s", (user,))   # bound parameter → no finding
+#### Step 1: Start the Backend Service
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+# Backend API runs at http://localhost:8000
 ```
 
-Covers injection (SQL/command/eval/deserialization/path), weak and broken
-cryptography, disabled TLS verification, non-cryptographic RNG in security
-contexts, sensitive logging and DOM XSS — across every supported language
-from one implementation. Secret detection stays regex + Shannon entropy,
-where syntax parsing offers no advantage.
-
-### Quantum readiness — `guardian/engines/quantum.py`, `guardian/quantum/classification.py`
-Three layers:
-
-* **A — Discovery.** Crypto operations found through UST call sites, imports
-  and dependency evidence. A comment mentioning RSA yields nothing;
-  `Cipher.getInstance(runtimeAlgo)` yields an *unresolved* call site, which
-  is neither "no crypto" nor a guess.
-* **B — Classification.** Deterministic rules map algorithms to
-  `VULNERABLE / WEAKENED / BROKEN / PQC / SAFE / UNKNOWN` with NIST citations
-  (FIPS 203/204/205), producing a CBOM and an explainable readiness score.
-* **C — Context.** Nemotron assesses purpose, business impact and migration
-  urgency. It is never asked whether RSA exists — Layer A proved that.
-
-Shor-class usage is reported as **Info-severity inventory**: using RSA today
-is a migration-planning item, not a live vulnerability. PQC merge gating is
-opt-in (`enable_quantum_gate`).
-
-### Business intent — `guardian/engines/business_intent.py`
-Requirements become testable structures, and the code is read to see whether
-it implements them:
-
+#### Step 2: Start the Web Dashboard
+```bash
+cd frontend
+npm install
+npm run dev
+# Frontend Dashboard runs at http://localhost:3000
 ```
-"Refunds above ₹50,000 require manager approval."
-        ↓ policy extraction
-{action: refund, condition: amount > 50000, required_control: authorization}
-        ↓ UST behavioural analysis of processRefund()
-calls: refundRepository.save, paymentGateway.refund
-authorization checks: NONE FOUND          ← evidence E42
-threshold comparison on 'amount': NONE    ← evidence E43
-        ↓
-VIOLATION — citing E42, E43
-```
-
-Verdicts are `COMPLIANT / VIOLATION / POTENTIAL_VIOLATION /
-INSUFFICIENT_EVIDENCE`. A requirement whose implementation cannot be located
-is `INSUFFICIENT_EVIDENCE` — never a violation, because "we could not find
-it" is not "it is broken".
-
-Requirements load from TXT, MD, PDF, DOCX, JSON, YAML, CSV and XLSX.
 
 ---
 
-## AI layer (optional)
+## 🌐 REST API Endpoints Overview
+
+The FastAPI backend exposes a rich set of REST API endpoints:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/v1/scans/run` | `POST` | Initiates a standard UST repository scan. |
+| `/api/v1/agentic_scan/run` | `POST` | Triggers a full multi-agent LangGraph workflow. |
+| `/api/v1/agentic_scan/{id}` | `GET` | Retrieves real-time agent execution status and correlated risk chains. |
+| `/api/v1/business_intent/analyze` | `POST` | Uploads requirements and evaluates code AST alignment. |
+| `/api/v1/chat/completions` | `POST` | Multi-persona AI copilot query endpoint (Developer, Executive, Red Teamer). |
+| `/api/v1/findings/` | `GET` | Returns filterable findings by severity, category, or file. |
+| `/api/v1/reports/export` | `POST` | Exports scan reports in JSON, SARIF 2.1.0, HTML, CSV, or PDF format. |
+
+---
+
+## 💻 Web Dashboard Experience
+
+The Next.js dashboard provides a modern cyberpunk interface tailored for security teams and software engineers:
+
+1. **📊 Security Overview**: High-level posture, total findings count, severity breakdowns, and language distribution.
+2. **🛡️ Vulnerability Workbench**: Detailed static and AI-validated security findings with inline code snippets and remediation instructions.
+3. **📋 Business Intent Tab**: Requirement coverage metrics, AST Alignment Score meter, and **WHAT/WHY/HOW** compliance breakdowns.
+4. **🧠 Mind Map Visualizer**: Interactive node graph mapping repository structure to security findings and business assets.
+5. **🤖 Agentic Workbench**: Real-time visualization of LangGraph agents executing threat modeling and patch generation.
+6. **💬 Interactive Multi-Persona Copilot**: Side-drawer AI assistant with tailored personas:
+   - **Developer**: Focuses on concrete code fixes and refactoring.
+   - **Executive**: Summarizes financial, operational, and compliance risks.
+   - **Red Teamer**: Explains exploitability, attack vectors, and proof-of-concept steps.
+
+---
+
+## 🧪 Testing & Verification
+
+Run the comprehensive test suite:
 
 ```bash
-pip install -e ".[ai]"
-cp .env.example .env          # set NVIDIA_API_KEY=nvapi-...
-python -m guardian scan /path/to/repo --ai --requirements reqs.md
+pip install -e ".[dev,ust]"
+python -m pytest tests/ -q
 ```
 
-Every model interaction goes through one service —
-`guardian.reasoning.NemotronReasoningService` — which owns credentials,
-timeouts, retries, caching, the token budget, logging and fallback.
-
-**The whole repository is never sent.** The gateway accepts only
-pre-selected evidence and enforces a hard character budget; when a prompt is
-too large it drops background knowledge before evidence and reports what it
-dropped. Secrets are redacted before transmission. Embeddings run locally.
-
-**Every AI finding is validated before it is shown:**
-
-| Outcome | Meaning |
-|---|---|
-| `DETERMINISTIC` | proven by rules or the UST |
-| `AI_VALIDATED` | model claim; evidence, file, line, function and algorithm all check out |
-| `AI_SUGGESTED` | grounded but not fully corroborated — confidence-capped at 0.6 |
-| `INSUFFICIENT_EVIDENCE` | rejected; recorded with the reason, never shown as a finding |
-
-Rejected outright: fabricated evidence IDs, invented algorithms, claims that
-contradict the evidence they cite, and missing-control assertions with no
-behavioural evidence. AI confidence never reaches 1.0 — only deterministic
-detection does.
-
-Without a key, the scan runs normally and reports the AI layer as
-unavailable.
-
-> ⚠️ Nemotron is a hosted API: the evidence and any snippet selected for
-> analysis leave your network. Secrets are redacted first
-> (`guardian/llm/guardrails.py`).
+**Test Coverage Highlights**:
+* UST normalization across Python, Java, JS/TS, and Rust.
+* Degradation ladders (Tree-sitter $\rightarrow$ stdlib AST $\rightarrow$ Regex).
+* Deterministic rule accuracy and evidence store integrity.
+* Business intent parsing and AST condition matching.
+* AI guardrails, hallucination rejection, and structured response parsing.
 
 ---
 
-## Dashboard
+## 📁 Repository Structure
 
-```bash
-pip install -e ".[dashboard]"
-streamlit run dashboard/app.py
 ```
-
-Upload a repository (ZIP, individual files, or a GitHub URL) plus optional
-requirement and policy documents, then work through
-**Overview → Security → Business Intent → Quantum → Dependencies → IaC →
-Risk → Recommendations → Reports**. Static, AI-validated and AI-suggested
-findings are visually distinguished and filterable, and the UST structure
-and evidence behind each finding are exposed for explainability.
+ai_features-main/
+├── backend/                  # FastAPI REST API Backend
+│   └── app/
+│       ├── api/v1/           # API Routers (agentic_scan, business_intent, chat, scans, reports)
+│       └── main.py           # Backend entrypoint (Port 8000)
+├── frontend/                 # Next.js Web Dashboard
+│   ├── src/
+│   │   ├── app/              # Next.js App Router pages
+│   │   └── components/       # UI Components (Security, Intent, Chat, Mindmap, Agentic)
+│   └── package.json
+├── guardian/                 # Core AI Code Guardian Engine
+│   ├── agents/               # LangGraph Multi-Agent Workflows (Security, Business)
+│   ├── discovery/            # Repository file discovery & language detection
+│   ├── engines/              # Deterministic engines (Security, Business Intent)
+│   ├── evidence/             # Evidence Store & Correlated Risk Chain builder
+│   ├── llm/                  # NVIDIA Nemotron LLM gateway & Redaction Guardrails
+│   ├── reasoning/            # RAG Knowledge retrieval & Hallucination validation
+│   ├── reporting/            # Report generators (SARIF, JSON, HTML, PDF)
+│   └── ust/                  # Tree-sitter Unified Syntax Tree normalizers
+├── config/                   # Configuration files (default.yaml)
+├── docs/                     # Architectural design specifications & guidelines
+├── reports/                  # Generated security scan reports
+├── tests/                    # Pytest test suite
+└── pyproject.toml            # Project configuration & package extras
+```
 
 ---
 
-## Reports
+## 📄 License & Standards
 
-JSON · SARIF 2.1.0 · HTML · CSV · printable PDF — each carrying category,
-severity, confidence, language, file, line, function, evidence IDs, reason,
-recommendation and provenance.
-
----
-
-## Configuration
-
-Copy `config/default.yaml`, edit, pass with `--config`. Every engine is a
-toggle; nothing is hardcoded to any repository.
-
-## Tests
-
-```bash
-pip install -e ".[dev,ust]" && python -m pytest tests/ -q
-```
-
-385 tests covering UST normalization per language, the degradation ladder,
-the evidence store, static→evidence conversion, business intent, quantum
-discovery and classification, structured LLM parsing, invalid-evidence and
-hallucination rejection, API and RAG failure, unsupported languages,
-malformed sources and mixed-language repositories.
-
-See `docs/ARCHITECTURE.md` for the full design.
+Designed and built in accordance with **OWASP Top 10** and **SARIF 2.1.0** specifications.
