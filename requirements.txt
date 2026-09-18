@@ -1,0 +1,31 @@
+# ── Core (required) ──────────────────────────────────────────────────────
+pyyaml>=6.0
+
+# ── Database & Persistence ────────────────────────────────────────────────
+sqlmodel>=0.0.14
+asyncpg>=0.28.0
+pgvector>=0.2.0
+
+# ── Tree-sitter parsing foundation (multi-language UST) ──────────────────
+# The UST degrades to stdlib-AST (Python) and regex (all languages) when
+# these are absent, so a scan still works — with lower confidence and
+# narrower coverage. Installing them is strongly recommended.
+tree_sitter>=0.21
+tree_sitter_python>=0.21
+tree_sitter_java>=0.21
+tree_sitter_javascript>=0.21
+tree_sitter_typescript>=0.21
+tree_sitter_rust>=0.21
+
+# Optional: enables UST/result caching in guardian.cache.redis_manager.
+# Safe to omit -- caching degrades to a no-op without it (see redis_manager.py).
+redis>=5.0
+
+# ── Multi-agent orchestration (Agentic Scan) ──────────────────────────────
+# Powers guardian/orchestrator + guardian/agents (the LangGraph workflow
+# behind the Agentic Scan view). Required -- guardian/orchestrator/state.py
+# imports langgraph.graph.message at module load time, so anything that
+# imports guardian.orchestrator.* (including backend/app/main.py once the
+# agentic-scan router is registered) fails without these installed.
+langgraph>=0.2.0
+langchain-core>=0.3.0

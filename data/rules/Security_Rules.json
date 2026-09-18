@@ -1,0 +1,62 @@
+[
+  {
+    "rule_id": "SEC-001",
+    "category": "SQL Injection",
+    "severity": "Medium",
+    "recommendation": "Mitigate SQL Injection using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-002",
+    "category": "XSS",
+    "severity": "Medium",
+    "recommendation": "Mitigate XSS using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-003",
+    "category": "CSRF",
+    "severity": "Medium",
+    "recommendation": "Mitigate CSRF using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-004",
+    "category": "Hardcoded Secret",
+    "severity": "High",
+    "recommendation": "Mitigate Hardcoded Secret using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-005",
+    "category": "Weak Crypto",
+    "severity": "High",
+    "recommendation": "Mitigate Weak Crypto using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-006",
+    "category": "Broken Authentication",
+    "severity": "High",
+    "recommendation": "Mitigate Broken Authentication using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-007",
+    "category": "Path Traversal",
+    "severity": "Medium",
+    "recommendation": "Mitigate Path Traversal using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-008",
+    "category": "SSRF",
+    "severity": "Medium",
+    "recommendation": "Mitigate SSRF using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-009",
+    "category": "Insecure Deserialization",
+    "severity": "High",
+    "recommendation": "Mitigate Insecure Deserialization using secure coding practices."
+  },
+  {
+    "rule_id": "SEC-010",
+    "category": "Sensitive Logging",
+    "severity": "High",
+    "recommendation": "Mitigate Sensitive Logging using secure coding practices."
+  }
+]

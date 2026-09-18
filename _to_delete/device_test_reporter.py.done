@@ -1,0 +1,80 @@
+import sys
+sys.path.insert(0, ".")
+from guardian.reporting.agentic_html_reporter import render_agentic_report_html
+
+agentic_state = {
+    "scan_id": "agentic_abc123",
+    "source_scan_id": "scan_xyz789",
+    "scan_mode": "full_scan",
+    "active_agent": None,
+    "current_task": None,
+    "completed_agents": ["planner", "repository", "security", "business", "threat_simulation", "risk_fusion", "patch", "validation"],
+    "pending_agents": [],
+    "execution_plan": {"agent_order": ["planner", "repository", "security", "business", "threat_simulation", "risk_fusion", "patch", "validation"], "priority": "high", "confidence": 0.87},
+    "agent_trace": [
+        {"agent_name": "planner", "execution_time": 0.12, "tools_used": [], "result": {"status": "success"}, "errors": []},
+        {"agent_name": "repository", "execution_time": 1.4, "tools_used": ["list_files"], "result": {"status": "success"}, "errors": []},
+        {"agent_name": "threat_simulation", "execution_time": 0.9, "tools_used": ["model_attack_path"], "result": {"status": "error"}, "errors": ["timeout"]},
+    ],
+    "business_violations": [
+        {"rule_id": "BR-01", "rule": "Refund approval", "status": "VIOLATION", "why": "Refunds above threshold are processed without manager approval.",
+         "evidence": "processRefund() has no approval check.", "score": 0.82,
+         "source_file": r"C:\Users\Rashi Mazumdar\AppData\Local\Temp\guardian_github_repos\myrepo\services\payment.py", "line_number": 42},
+        {"rule_id": "BR-02", "rule": "Data retention", "status": "COMPLIANT", "what": "ok"},
+    ],
+    "attack_paths": [
+        {"finding_id": "F-001", "entry_point": "HTTP POST /api/pay", "target_file": "payment.py", "attack_vector": "SQL Injection", "reachability": "DIRECT", "exploitability": 0.91},
+        {"finding_id": "F-002", "entry_point": "internal call", "target_file": "utils.py", "attack_vector": "vulnerable dependency", "reachability": "INDIRECT", "exploitability": 0.4},
+        {"finding_id": "F-003", "entry_point": "internal call", "target_file": "utils2.py", "attack_vector": "vulnerable dependency", "reachability": "INDIRECT", "exploitability": 0.35},
+        {"finding_id": "F-004", "entry_point": "internal call", "target_file": "utils3.py", "attack_vector": "vulnerable dependency", "reachability": "INDIRECT", "exploitability": 0.2},
+    ],
+    "findings": [
+        {"finding_id": "F-001", "rule_id": "SEC-001", "category": "SQL Injection", "severity": "Critical", "file": "services/payment.py", "line": 42, "evidence_ids": ["E-1"]},
+        {"finding_id": "F-002", "rule_id": "SEC-004", "category": "Hardcoded Secret", "severity": "High", "file": "utils.py", "line": 5},
+    ],
+    "evidence": [],
+    "risk_scores": {"composite_risk_score": 7.8, "technical_risk_score": 8.1, "business_risk_score": 6.5, "threat_risk_score": 7.2, "policy_risk_score": 3.0, "risk_level": "HIGH", "confidence_score": 0.8, "reachability_weight": 0.6},
+    "correlated_findings": {
+        "total_correlated": 1,
+        "chains": [{"chain_id": "C-1", "title": "Payment SQLi chain", "finding_id": "F-001", "target_asset": "payment-service", "business_criticality": "CRITICAL", "policy_violations": ["PCI-1"], "exploitability": 0.91}],
+        "evidence_mapping": {"F-001": ["E-1"]},
+    },
+    "patches": [
+        {"patch_id": "P-1", "finding_id": "F-001", "affected_file": "services/payment.py", "affected_lines": "40-44", "explanation": "Use parameterized query.", "validation_status": "PASSED"},
+        {"patch_id": "P-2", "finding_id": "F-002", "affected_file": "utils.py", "affected_lines": "5", "explanation": "Move secret to env var.", "validation_status": "PENDING"},
+    ],
+    "validation_results": [
+        {"patch_id": "P-1", "finding_id": "F-001", "status": "PASSED", "grounding_passed": True, "syntax_valid": True},
+    ],
+}
+
+deterministic = {
+    "target": "myrepo",
+    "repository": {"root": ""},
+    "scan": {
+        "total_findings": 2,
+        "by_severity": {"Critical": 1, "High": 1},
+        "findings": [
+            {"finding_id": "F-001", "rule_id": "SEC-001", "category": "SQL Injection", "severity": "Critical", "file": "services/payment.py", "line": 42, "recommendation": "Use parameterized queries."},
+            {"finding_id": "F-002", "rule_id": "SEC-004", "category": "Hardcoded Secret", "severity": "High", "file": "utils.py", "line": 5, "recommendation": "Use env vars."},
+        ],
+    },
+}
+
+html_agentic = render_agentic_report_html(agentic_state, None, "scan_xyz789")
+assert "Agentic Analysis Report" in html_agentic
+assert "Deterministic Security Findings" not in html_agentic
+assert "guardian_github_repos" not in html_agentic
+assert r"C:\Users" not in html_agentic
+assert "Ready to Apply" in html_agentic
+
+html_unified = render_agentic_report_html(agentic_state, deterministic, "scan_xyz789")
+assert "Deterministic Security Findings" in html_unified
+
+with open("/tmp/device_agentic_report.html", "w") as f:
+    f.write(html_agentic)
+with open("/tmp/device_unified_report.html", "w") as f:
+    f.write(html_unified)
+
+print("agentic len:", len(html_agentic), "unified len:", len(html_unified))
+print("ALL DEVICE-SIDE ASSERTIONS PASSED")

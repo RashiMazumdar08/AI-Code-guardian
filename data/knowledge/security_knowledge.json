@@ -1,0 +1,128 @@
+[
+  {
+    "id": "OWASP-A03-SQLI",
+    "title": "OWASP A03:2021 Injection — SQL Injection",
+    "topics": ["sql injection", "injection", "sqli", "cwe-89", "a03", "database", "query"],
+    "standard": "OWASP Top 10 2021 / CWE-89",
+    "content": "Injection occurs when untrusted data is sent to an interpreter as part of a command or query. For SQL, the only reliable defence is to keep data out of the query text: use parameterised queries or prepared statements so the database receives the query structure and the values separately. Escaping is a fallback, not a fix, and allow-listing is required where identifiers (table/column names, ORDER BY targets) cannot be parameterised. An ORM does not prevent injection when raw-SQL or string-interpolated query builders are used."
+  },
+  {
+    "id": "CWE-78-CMDI",
+    "title": "CWE-78 OS Command Injection",
+    "topics": ["command injection", "cwe-78", "os command", "shell", "subprocess", "exec"],
+    "standard": "CWE-78 / OWASP A03:2021",
+    "content": "Command injection arises when untrusted input reaches a shell interpreter. Pass arguments as an argument vector with shell interpretation disabled (subprocess with shell=False, ProcessBuilder, Command::new with .arg). Where a shell is genuinely required, allow-list the permitted values rather than attempting to escape metacharacters, whose set differs per shell and per platform."
+  },
+  {
+    "id": "OWASP-A02-CRYPTO",
+    "title": "OWASP A02:2021 Cryptographic Failures",
+    "topics": ["weak crypto", "cryptographic failure", "md5", "sha-1", "des", "rc4", "ecb", "cwe-327", "a02", "hashing", "encryption"],
+    "standard": "OWASP Top 10 2021 / CWE-327",
+    "content": "MD5 and SHA-1 are collision-broken and must not be used for signatures, certificates or integrity where an adversary can influence the input. DES, 3DES and RC4 are prohibited by NIST SP 800-131A. ECB mode leaks plaintext structure and must never be used; prefer AES-256-GCM or ChaCha20-Poly1305 for authenticated encryption. Passwords require a memory-hard KDF (Argon2id, scrypt) or bcrypt — never a plain hash, however strong."
+  },
+  {
+    "id": "CWE-798-SECRETS",
+    "title": "CWE-798 Use of Hard-coded Credentials",
+    "topics": ["hardcoded secret", "credential", "api key", "cwe-798", "secret", "token", "password"],
+    "standard": "CWE-798 / OWASP A07:2021",
+    "content": "Credentials committed to source control must be treated as compromised from the moment of commit and rotated, not merely removed — git history and forks retain them. Load secrets from environment variables injected at deploy time or from a secret manager with short-lived credentials, and add detection to CI so the next one is caught before merge."
+  },
+  {
+    "id": "CWE-295-TLS",
+    "title": "CWE-295 Improper Certificate Validation",
+    "topics": ["tls", "certificate", "ssl", "cwe-295", "hostname verification", "transport"],
+    "standard": "CWE-295 / NIST SP 800-52r2",
+    "content": "Disabling certificate or hostname verification removes all authentication from TLS and reduces it to unauthenticated encryption, which any network-position attacker defeats. Fix the trust store rather than the verification flag: install the internal CA, or pin the specific certificate. NIST SP 800-52r2 requires TLS 1.2 as a minimum and recommends TLS 1.3."
+  },
+  {
+    "id": "CWE-532-LOGGING",
+    "title": "CWE-532 Insertion of Sensitive Information into Log File",
+    "topics": ["sensitive logging", "cwe-532", "logging", "pii", "log"],
+    "standard": "CWE-532 / OWASP A09:2021",
+    "content": "Logs are replicated into aggregation systems, backups and third-party observability platforms, each with a broader access population than the application database. Log identifiers, never values: a customer ID rather than a card number, a token fingerprint rather than a token. Where a value must be traceable, log a keyed hash."
+  },
+  {
+    "id": "CWE-338-RANDOM",
+    "title": "CWE-338 Use of Cryptographically Weak PRNG",
+    "topics": ["insecure random", "cwe-338", "prng", "token generation", "nonce"],
+    "standard": "CWE-338",
+    "content": "Standard library random functions (random.random, Math.random, java.util.Random, rand::thread_rng) are statistically uniform but predictable from observed output. Anything that must be unguessable — session tokens, password-reset links, nonces, IVs, API keys — requires a CSPRNG: secrets/os.urandom, java.security.SecureRandom, crypto.randomBytes, rand::rngs::OsRng."
+  },
+  {
+    "id": "NIST-PQC-MIGRATION",
+    "title": "NIST Post-Quantum Migration Guidance",
+    "topics": ["quantum", "pqc", "post-quantum", "migration", "rsa", "ecc", "ecdsa", "harvest now decrypt later", "shor"],
+    "standard": "NIST IR 8547 / CNSA 2.0",
+    "content": "Shor's algorithm breaks RSA, ECC, ECDSA, ECDH, DSA and finite-field Diffie-Hellman once a cryptographically relevant quantum computer exists. NIST plans deprecation of 112-bit-classical public-key algorithms by 2030 and disallowance by 2035. Migration priority is driven by data lifetime rather than current exploitability: data that must stay confidential beyond 2035 is exposed today under harvest-now-decrypt-later, so long-lived confidentiality (health records, financial identifiers, key material) migrates first, ephemeral session data last. Practical sequencing: build a cryptographic inventory (CBOM), achieve crypto-agility so algorithms are configuration rather than code, then deploy hybrid key establishment before pure PQC."
+  },
+  {
+    "id": "FIPS-203-MLKEM",
+    "title": "FIPS 203 — ML-KEM (Module-Lattice Key Encapsulation)",
+    "topics": ["ml-kem", "kyber", "fips 203", "key encapsulation", "key exchange", "pqc"],
+    "standard": "FIPS 203",
+    "content": "ML-KEM replaces RSA key transport and (EC)DH key agreement. Parameter sets ML-KEM-512/768/1024 target NIST security categories 1/3/5; ML-KEM-768 is the general-purpose default. During transition, deploy hybrid key establishment (X25519MLKEM768) so a break of either component alone does not compromise the session. ML-KEM is a KEM, not a drop-in encryption primitive: it establishes a shared secret which then keys an AEAD such as AES-256-GCM."
+  },
+  {
+    "id": "FIPS-204-MLDSA",
+    "title": "FIPS 204 — ML-DSA (Module-Lattice Digital Signature)",
+    "topics": ["ml-dsa", "dilithium", "fips 204", "signature", "signing", "pqc"],
+    "standard": "FIPS 204",
+    "content": "ML-DSA replaces RSA and ECDSA signatures. ML-DSA-44/65/87 target NIST categories 2/3/5. Signatures and public keys are substantially larger than ECDSA's (ML-DSA-65: ~3.3 KB signature, ~2 KB public key), so protocols with size constraints — certificate chains, embedded firmware, blockchain transactions — need capacity planning before migration, not after."
+  },
+  {
+    "id": "FIPS-205-SLHDSA",
+    "title": "FIPS 205 — SLH-DSA (Stateless Hash-Based Signature)",
+    "topics": ["slh-dsa", "sphincs", "fips 205", "signature", "hash-based", "pqc"],
+    "standard": "FIPS 205",
+    "content": "SLH-DSA is a stateless hash-based signature whose security rests only on hash-function properties, making it the conservative choice where an unbroken-for-decades guarantee matters more than performance: firmware signing, root-of-trust and code-signing certificates. Signatures are large (7-30 KB) and signing is slow, so it is unsuited to high-volume transaction signing."
+  },
+  {
+    "id": "NIST-RMF-CONTROLS",
+    "title": "NIST SP 800-53 Control Families for Application Security",
+    "topics": ["nist", "rmf", "800-53", "controls", "compliance", "access control", "audit"],
+    "standard": "NIST SP 800-53 Rev. 5",
+    "content": "AC-3 (Access Enforcement) requires the system to enforce approved authorizations at the point of access, not merely in the UI. AC-6 (Least Privilege) requires the minimum authorization necessary. AU-2/AU-3 (Audit Events / Content) require security-relevant events to be recorded with enough content to reconstruct what happened, who did it and when. SC-13 (Cryptographic Protection) requires FIPS-validated cryptography for the protection it is claimed to provide. SI-10 (Information Input Validation) requires validity checks on inputs."
+  },
+  {
+    "id": "BIZ-AUTHZ-CONTROLS",
+    "title": "Authorization and Approval Controls in Business Workflows",
+    "topics": ["authorization", "approval", "business rule", "maker checker", "segregation of duties", "threshold", "refund", "payment"],
+    "standard": "NIST SP 800-53 AC-3 / AC-5 / COSO",
+    "content": "A value-threshold rule ('transactions above X require approval') is only enforced if the server-side handler checks both the amount and the approver's authority before committing the transaction. Common failure modes: the check exists only in the client; the check runs after the state change; the approver may be the initiator (no segregation of duties); the threshold is compared before currency normalisation; or an alternate code path (batch job, admin endpoint, internal API) reaches the same operation without the check. Evidence that a control exists requires an authorization call on the path between the request and the state change — the absence of such a call on that path is evidence the control is missing."
+  },
+  {
+    "id": "BIZ-AUDIT-CONTROLS",
+    "title": "Auditability of Business-Critical Operations",
+    "topics": ["audit", "audit log", "traceability", "business rule", "compliance", "evidence"],
+    "standard": "NIST SP 800-53 AU-2 / AU-3",
+    "content": "A requirement that an operation be 'recorded' or 'auditable' is satisfied only by a durable, tamper-evident record written on the same transaction path as the operation. An application log line is not an audit record if it can be lost on rollback, is not retained, or omits the actor. Audit content must identify what happened, when, who initiated it, and the outcome."
+  },
+  {
+    "id": "OWASP-A01-BAC",
+    "title": "OWASP A01:2021 Broken Access Control",
+    "topics": ["access control", "authorization", "a01", "idor", "cwe-639", "privilege"],
+    "standard": "OWASP Top 10 2021",
+    "content": "Broken access control is the most commonly exploited application weakness. Enforce authorization server-side on every request, deny by default, and derive the subject's identity from the session rather than from request parameters. Object-level checks matter as much as route-level ones: a handler that authenticates the caller but does not verify that the requested object belongs to them is an IDOR regardless of route protection."
+  },
+  {
+    "id": "OWASP-A08-DESER",
+    "title": "OWASP A08:2021 Software and Data Integrity Failures",
+    "topics": ["deserialization", "cwe-502", "a08", "pickle", "yaml", "untrusted data"],
+    "standard": "OWASP Top 10 2021 / CWE-502",
+    "content": "Deserialising untrusted data with a format that can instantiate arbitrary types (Python pickle, Java ObjectInputStream, unsafe YAML loaders) yields remote code execution. Use data-only formats and deserialise into explicit typed schemas with validation. Where a rich format is unavoidable, apply an allow-list of permitted types and verify integrity with a MAC before parsing."
+  },
+  {
+    "id": "CWE-22-PATH",
+    "title": "CWE-22 Path Traversal",
+    "topics": ["path traversal", "cwe-22", "directory traversal", "file", "upload"],
+    "standard": "CWE-22 / OWASP A01:2021",
+    "content": "Reject traversal by resolving the requested path to its canonical form and verifying the result is inside the intended base directory — filtering '../' is defeated by encoding and by symlinks. Prefer indirection: map an opaque identifier to a server-side path rather than accepting a path from the client at all."
+  },
+  {
+    "id": "CWE-79-XSS",
+    "title": "CWE-79 Cross-Site Scripting",
+    "topics": ["xss", "cwe-79", "cross-site scripting", "innerhtml", "dom"],
+    "standard": "CWE-79 / OWASP A03:2021",
+    "content": "Escape on output, according to the context the value lands in — HTML body, attribute, URL and JavaScript contexts have different escaping rules, and applying the wrong one leaves the injection open. Prefer frameworks with contextual auto-escaping and treat every escape-hatch (innerHTML, dangerouslySetInnerHTML, v-html, raw template filters) as requiring a sanitiser and a review."
+  }
+]

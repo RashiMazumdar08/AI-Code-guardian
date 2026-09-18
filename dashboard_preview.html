@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AI Code Guardian - Security Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#090D16;--surface:#111726;--surface2:#161E2E;
+  --border:rgba(148,163,184,0.08);--border-md:rgba(148,163,184,0.14);
+  --accent:#FF5E1E;--red:#EF4444;--green:#22C55E;--amber:#F59E0B;
+  --muted:#64748B;--text:#E2E8F0;--dim:#94A3B8;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;overflow:hidden}
+.shell{display:flex;flex-direction:column;height:100vh}
+
+/* TOP NAV */
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border)}
+.tnl,.tnr{display:flex;align-items:center;gap:12px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.logo-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#FF5E1E,#FF8C42);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 16px rgba(255,94,30,0.35)}
+.dv{width:1px;height:20px;background:var(--border-md)}
+.repo{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--border-md);cursor:pointer}
+.rn{font-size:12px;font-weight:600}
+.rb{font-size:11px;color:var(--dim);font-family:var(--mono)}
+.bpill{display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);font-size:11px;font-family:var(--mono);color:#93C5FD}
+.ch{color:var(--muted);font-size:10px}
+
+/* GAUGE */
+.gauge{display:flex;align-items:center;gap:10px}
+.gr{position:relative;width:44px;height:44px}
+.gr svg{transform:rotate(-90deg)}
+.gtrack{fill:none;stroke:rgba(255,255,255,0.06);stroke-width:3.5}
+.gfill{fill:none;stroke:var(--accent);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:110 125}
+.gval{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--mono)}
+.glbl{font-size:11px;color:var(--dim);line-height:1.3}
+.glbl strong{display:block;font-size:13px;color:var(--accent);font-weight:700}
+
+/* PILLS */
+.pills{display:flex;gap:6px}
+.pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--mono)}
+.pc{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#FCA5A5}
+.ph{background:rgba(255,94,30,0.1);border:1px solid rgba(255,94,30,0.3);color:#FDB89A}
+.pm{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:#FCD34D}
+.pd{width:6px;height:6px;border-radius:50%}
+.pc .pd{background:var(--red);box-shadow:0 0 6px var(--red)}
+.ph .pd{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.pm .pd{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.ibtn{width:32px;height:32px;border-radius:8px;background:transparent;border:1px solid var(--border-md);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--dim);font-size:14px;transition:all .15s}
+.ibtn:hover{background:var(--surface2);color:var(--text)}
+.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;border:2px solid rgba(99,102,241,0.3)}
+
+/* BODY */
+.body{display:flex;flex:1;overflow:hidden}
+
+/* SIDENAV */
+.sn{width:56px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px}
+.ni{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:17px;transition:all .15s;position:relative}
+.ni:hover{background:var(--surface2);color:var(--dim)}
+.ni.active{background:rgba(255,94,30,0.12);color:var(--accent)}
+.ni.active::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.ni[title]:hover::after{content:attr(title);position:absolute;left:52px;background:var(--surface2);border:1px solid var(--border-md);color:var(--text);font-size:11px;font-family:var(--sans);padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:99;font-weight:500;pointer-events:none}
+.nsp{flex:1}
+
+/* WORKSPACE */
+.ws{flex:1;display:flex;overflow:hidden}
+.ec{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
+
+/* FILE TABS */
+.ft{display:flex;align-items:center;height:38px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{display:flex;align-items:center;gap:7px;padding:0 16px;height:100%;font-family:var(--mono);font-size:11px;color:var(--dim);border-right:1px solid var(--border);cursor:pointer;white-space:nowrap}
+.tab.active{background:var(--surface);color:var(--text);border-top:2px solid var(--accent)}
+.dm{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pdot 2s infinite}
+.tbadge{padding:1px 5px;border-radius:4px;background:rgba(239,68,68,0.2);color:#FCA5A5;font-size:9px;font-weight:700}
+@keyframes pdot{0%,100%{box-shadow:0 0 0 0 rgba(255,94,30,0.4)}50%{box-shadow:0 0 0 4px rgba(255,94,30,0)}}
+
+/* DIFF TOOLBAR */
+.dtb{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.dtbl{display:flex;align-items:center;gap:10px}
+.dlbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.dmode{display:flex;gap:2px;background:var(--bg);border:1px solid var(--border-md);border-radius:7px;padding:2px}
+.dmb{padding:3px 10px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;color:var(--dim)}
+.dmb.active{background:var(--surface2);color:var(--text)}
+.etag{display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);font-size:10px;font-weight:600;color:#86EFAC}
+.sdot{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
+.scrit{padding:2px 7px;border-radius:5px;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;background:rgba(239,68,68,0.18);color:#FCA5A5;border:1px solid rgba(239,68,68,0.3)}
+
+/* DIFF PANE */
+.dp{display:flex;flex:1;overflow:hidden;font-family:var(--mono);font-size:12px;line-height:1.7}
+.ds{flex:1;overflow-y:auto;overflow-x:hidden}
+.ds::-webkit-scrollbar{width:4px}
+.ds::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.12);border-radius:2px}
+.dsh{padding:6px 14px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)}
+.dsh.L{background:rgba(239,68,68,0.04);color:#FCA5A5;border-right:1px solid var(--border)}
+.dsh.R{background:rgba(34,197,94,0.04);color:#86EFAC}
+.ds.LD{border-right:1px solid var(--border);background:rgba(239,68,68,0.02)}
+.ds.RD{background:rgba(34,197,94,0.02)}
+.dl{display:flex}
+.ln{width:38px;text-align:right;padding:0 8px;color:rgba(148,163,184,0.25);font-size:10px;user-select:none;flex-shrink:0}
+.lm{width:16px;flex-shrink:0;text-align:center}
+.lc{padding:0 10px;white-space:pre;color:var(--dim);flex:1}
+.dl.rm{background:rgba(239,68,68,0.09)}.dl.rm .lm,.dl.rm .lc{color:#FCA5A5}
+.dl.ad{background:rgba(34,197,94,0.08)}.dl.ad .lm,.dl.ad .lc{color:#86EFAC}
+.kw{color:#C084FC}.fn{color:#60A5FA}.sv{color:#FCA5A5}.ss{color:#86EFAC}.cm{color:#475569;font-style:italic}.nm{color:#FCD34D}
+
+/* AI CARD */
+.aic{margin:12px 16px;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,rgba(17,23,38,0.98),rgba(22,30,46,0.98));border:1px solid rgba(239,68,68,0.22);box-shadow:0 8px 32px rgba(0,0,0,0.4);flex-shrink:0;animation:fu .3s ease forwards}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.aich{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(239,68,68,0.1);background:rgba(239,68,68,0.04)}
+.aict{display:flex;align-items:center;gap:8px;font-weight:700;font-size:12px}
+.aibadge{display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);font-size:9px;font-weight:700;color:#A5B4FC;text-transform:uppercase}
+.aicb{padding:12px 14px}
+.rt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:6px}
+.rec{display:flex;align-items:flex-start;gap:7px;font-size:11px;color:var(--dim);margin-bottom:4px;line-height:1.5}
+.rec::before{content:'&#8594;';color:var(--accent);font-weight:700;flex-shrink:0;margin-top:1px}
+code{font-family:var(--mono);font-size:10px;background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px}
+
+/* ACTION BAR */
+.ab{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+.bpri{display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;font-size:12px;cursor:pointer;border:none;box-shadow:0 0 18px rgba(255,94,30,0.3);transition:all .15s;font-family:var(--sans)}
+.bpri:hover{background:#FF7240;box-shadow:0 0 26px rgba(255,94,30,0.45);transform:translateY(-1px)}
+.bgh{display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:9px;background:transparent;color:var(--dim);font-weight:600;font-size:12px;cursor:pointer;border:1px solid var(--border-md);transition:all .15s;font-family:var(--sans)}
+.bgh:hover{background:var(--surface2);color:var(--text)}
+.ciw{flex:1;display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:9px;background:var(--bg);border:1px solid var(--border-md)}
+.cin{background:none;border:none;outline:none;color:var(--text);font-size:12px;font-family:var(--sans);flex:1}
+.cin::placeholder{color:var(--muted)}
+.csb{width:26px;height:26px;border-radius:7px;background:var(--accent);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;color:white;font-size:12px;transition:all .15s}
+
+/* EXPLORER */
+.exp{width:280px;flex-shrink:0;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.exph{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.expt{font-weight:700;font-size:12px}
+.sortd{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--border-md);font-size:10px;color:var(--dim);cursor:pointer}
+.exps{display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.exst{flex:1;text-align:center;padding:6px 4px;border-radius:8px;background:var(--bg);border:1px solid var(--border)}
+.esv{font-size:16px;font-weight:800;font-family:var(--mono)}
+.esl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:1px}
+.cr{color:var(--red)}.co{color:var(--accent)}.cg{color:var(--green)}
+
+/* FILE TREE */
+.ftree{flex:1;overflow-y:auto;padding:8px 0}
+.ftree::-webkit-scrollbar{width:4px}
+.ftree::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.1);border-radius:2px}
+.tf{padding:5px 14px;display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--dim);cursor:pointer}
+.tf:hover{background:var(--surface2)}
+.tf .tc{font-size:10px;width:12px}
+.tfs{padding-left:20px}
+.tfi{display:flex;align-items:center;gap:7px;padding:4px 14px;font-size:11px;cursor:pointer;border-radius:6px;margin:1px 4px;transition:all .12s;font-family:var(--mono)}
+.tfi:hover{background:var(--surface2)}
+.tfi.active{background:rgba(255,94,30,0.08);border:1px solid rgba(255,94,30,0.15)}
+.tfi.safe{color:var(--muted)}
+.tfi.vuln{color:#FCA5A5}
+.tfi.active.vuln{color:#FDBA74}
+.fic{font-size:12px;flex-shrink:0}
+.fnm{flex:1}
+.rtag{padding:1px 5px;border-radius:4px;font-size:9px;font-weight:800;flex-shrink:0;white-space:nowrap}
+.rtc{background:rgba(239,68,68,0.15);color:#FCA5A5;border:1px solid rgba(239,68,68,0.25)}
+.rth{background:rgba(255,94,30,0.12);color:#FDB89A;border:1px solid rgba(255,94,30,0.22)}
+.rts{background:rgba(34,197,94,0.08);color:#86EFAC;border:1px solid rgba(34,197,94,0.15)}
+
+/* REMEDIATION */
+.rems{padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0}
+.remh{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.remh span{color:var(--green);font-size:10px}
+.rrow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.rlb{font-size:10px;width:70px;flex-shrink:0}
+.rbar{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,0.05);overflow:hidden}
+.rbari{height:100%;border-radius:3px}
+.rval{font-size:10px;font-weight:700;font-family:var(--mono);width:28px;text-align:right}
+
+/* CWE */
+.cwes{padding:8px 14px 12px;border-top:1px solid var(--border);flex-shrink:0}
+.cwet{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:8px}
+.cwetags{display:flex;flex-wrap:wrap;gap:4px}
+.ct{padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;font-family:var(--mono);background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);color:#93C5FD;cursor:pointer;transition:all .12s}
+.ct:hover{background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- TOP NAV -->
+<header class="topnav">
+  <div class="tnl">
+    <div class="logo"><div class="logo-icon">&#128737;</div><span>AI Code Guardian</span></div>
+    <div class="dv"></div>
+    <div class="repo">
+      <span>&#128230;</span>
+      <div><div class="rn">acg_repo_v2</div><div class="rb">/ main</div></div>
+      <span class="ch">&#9662;</span>
+    </div>
+    <div class="bpill"><span>&#127807;</span><span>feature/auth-hardening</span><span class="ch">&#9662;</span></div>
+  </div>
+  <div class="tnr">
+    <div class="gauge">
+      <div class="gr">
+        <svg viewBox="0 0 44 44" width="44" height="44">
+          <circle class="gtrack" cx="22" cy="22" r="18"/>
+          <circle class="gfill" cx="22" cy="22" r="18"/>
+        </svg>
+        <div class="gval">78</div>
+      </div>
+      <div class="glbl"><strong>Improving &#8599;</strong>Security Score</div>
+    </div>
+    <div class="dv"></div>
+    <div class="pills">
+      <div class="pill pc"><div class="pd"></div>5 Critical</div>
+      <div class="pill ph"><div class="pd"></div>24 High</div>
+      <div class="pill pm"><div class="pd"></div>10 Medium</div>
+    </div>
+    <div class="dv"></div>
+    <div class="ibtn">&#128276;</div>
+    <div class="ibtn">&#9881;</div>
+    <div class="avatar">KO</div>
+  </div>
+</header>
+
+<div class="body">
+  <!-- SIDENAV -->
+  <nav class="sn">
+    <div class="ni" title="Dashboard">&#9646;</div>
+    <div class="ni active" title="Remediation Queue">&#128295;</div>
+    <div class="ni" title="Repository View">&#128193;</div>
+    <div class="ni" title="Pull Request Analysis">&#128256;</div>
+    <div class="ni" title="Mind Map">&#128376;</div>
+    <div class="ni" title="Business Intent">&#128216;</div>
+    <div class="nsp"></div>
+    <div class="ni" title="Settings">&#9881;</div>
+  </nav>
+
+  <div class="ws">
+    <!-- EDITOR COLUMN -->
+    <div class="ec">
+      <!-- File Tabs -->
+      <div class="ft">
+        <div class="tab active">&#128013;&nbsp;backend/app/api/v1/<strong>findings.py</strong>&nbsp;<div class="dm"></div>&nbsp;<span class="tbadge">1 Critical</span></div>
+        <div class="tab">&#128013;&nbsp;files.py</div>
+        <div class="tab">&#128013;&nbsp;auth.py&nbsp;<span class="tbadge">2 High</span></div>
+      </div>
+      <!-- Diff Toolbar -->
+      <div class="dtb">
+        <div class="dtbl">
+          <div class="dlbl">AI Auto-Fix Diff</div>
+          <div class="dmode"><div class="dmb active">Split</div><div class="dmb">Unified</div></div>
+          <div class="etag"><div class="sdot"></div>Nemotron Fix Engine</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:var(--muted)">CWE-295 &mdash; Improper Certificate Validation</span>
+          <div class="scrit">Critical</div>
+        </div>
+      </div>
+      <!-- Diff Pane -->
+      <div class="dp">
+        <!-- LEFT: Vulnerable -->
+        <div class="ds LD">
+          <div class="dsh L">&#9940; Original (Vulnerable)</div>
+          <div class="dl"><span class="ln">1</span><span class="lm"></span><span class="lc"><span class="kw">import</span> requests</span></div>
+          <div class="dl"><span class="ln">2</span><span class="lm"></span><span class="lc"><span class="kw">from</span> flask <span class="kw">import</span> jsonify</span></div>
+          <div class="dl"><span class="ln">3</span><span class="lm"></span><span class="lc"></span></div>
+          <div class="dl"><span class="ln">4</span><span class="lm"></span><span class="lc"><span class="cm"># Fetch remote security findings</span></span></div>
+          <div class="dl rm"><span class="ln">5</span><span class="lm">&#8722;</span><span class="lc"><span class="kw">def</span> <span class="fn">fetch_findings</span>(endpoint):</span></div>
+          <div class="dl rm"><span class="ln">6</span><span class="lm">&#8722;</span><span class="lc">  resp = requests.<span class="fn">get</span>(</span></div>
+          <div class="dl rm"><span class="ln">7</span><span class="lm">&#8722;</span><span class="lc">    endpoint,</span></div>
+          <div class="dl rm"><span class="ln">8</span><span class="lm">&#8722;</span><span class="lc">    verify=<span class="sv">False</span>,  <span class="cm"># &#9888; disables TLS</span></span></div>
+          <div class="dl rm"><span class="ln">9</span><span class="lm">&#8722;</span><span class="lc">    timeout=<span class="nm">30</span></span></div>
+          <div class="dl rm"><span class="ln">10</span><span class="lm">&#8722;</span><span class="lc">  )</span></div>
+          <div class="dl"><span class="ln">11</span><span class="lm"></span><span class="lc">  <span class="kw">if</span> resp.status_code != <span class="nm">200</span>:</span></div>
+          <div class="dl"><span class="ln">12</span><span class="lm"></span><span class="lc">    <span class="kw">return</span> <span class="fn">jsonify</span>({"error": "fetch failed"})</span></div>
+          <div class="dl"><span class="ln">13</span><span class="lm"></span><span class="lc">  <span class="kw">return</span> resp.<span class="fn">json</span>()</span></div>
+          <div class="dl"><span class="ln">14</span><span class="lm"></span><span class="lc"></span></div>
+          <div class="dl rm"><span class="ln">15</span><span class="lm">&#8722;</span><span class="lc"><span class="kw">def</span> <span class="fn">post_autofix</span>(url, payload):</span></div>
+          <div class="dl rm"><span class="ln">16</span><span class="lm">&#8722;</span><span class="lc">  <span class="kw">return</span> requests.<span class="fn">post</span>(url, json=payload,</span></div>
+          <div class="dl rm"><span class="ln">17</span><span class="lm">&#8722;</span><span class="lc">    verify=<span class="sv">False</span>)  <span class="cm"># &#9888; no cert check</span></span></div>
+        </div>
+        <!-- RIGHT: Fixed -->
+        <div class="ds RD">
+          <div class="dsh R">&#9989; AI-Fixed (Secure)</div>
+          <div class="dl"><span class="ln">1</span><span class="lm"></span><span class="lc"><span class="kw">import</span> requests</span></div>
+          <div class="dl"><span class="ln">2</span><span class="lm"></span><span class="lc"><span class="kw">from</span> flask <span class="kw">import</span> jsonify</span></div>
+          <div class="dl ad"><span class="ln">3</span><span class="lm">+</span><span class="lc"><span class="kw">import</span> ssl, certifi</span></div>
+          <div class="dl"><span class="ln">4</span><span class="lm"></span><span class="lc"><span class="cm"># Fetch remote security findings</span></span></div>
+          <div class="dl ad"><span class="ln">5</span><span class="lm">+</span><span class="lc"><span class="kw">def</span> <span class="fn">fetch_findings</span>(endpoint):</span></div>
+          <div class="dl ad"><span class="ln">6</span><span class="lm">+</span><span class="lc">  resp = requests.<span class="fn">get</span>(</span></div>
+          <div class="dl ad"><span class="ln">7</span><span class="lm">+</span><span class="lc">    endpoint,</span></div>
+          <div class="dl ad"><span class="ln">8</span><span class="lm">+</span><span class="lc">    verify=certifi.<span class="fn">where</span>(),  <span class="cm"># &#9989; cert bundle</span></span></div>
+          <div class="dl ad"><span class="ln">9</span><span class="lm">+</span><span class="lc">    timeout=<span class="nm">10</span>  <span class="cm"># &#9989; bounded timeout</span></span></div>
+          <div class="dl ad"><span class="ln">10</span><span class="lm">+</span><span class="lc">  )</span></div>
+          <div class="dl"><span class="ln">11</span><span class="lm"></span><span class="lc">  <span class="kw">if</span> resp.status_code != <span class="nm">200</span>:</span></div>
+          <div class="dl"><span class="ln">12</span><span class="lm"></span><span class="lc">    <span class="kw">return</span> <span class="fn">jsonify</span>({"error": "fetch failed"})</span></div>
+          <div class="dl"><span class="ln">13</span><span class="lm"></span><span class="lc">  <span class="kw">return</span> resp.<span class="fn">json</span>()</span></div>
+          <div class="dl"><span class="ln">14</span><span class="lm"></span><span class="lc"></span></div>
+          <div class="dl ad"><span class="ln">15</span><span class="lm">+</span><span class="lc"><span class="kw">def</span> <span class="fn">post_autofix</span>(url, payload):</span></div>
+          <div class="dl ad"><span class="ln">16</span><span class="lm">+</span><span class="lc">  <span class="kw">return</span> requests.<span class="fn">post</span>(url, json=payload,</span></div>
+          <div class="dl ad"><span class="ln">17</span><span class="lm">+</span><span class="lc">    verify=certifi.<span class="fn">where</span>())  <span class="cm"># &#9989; TLS enforced</span></span></div>
+        </div>
+      </div>
+
+      <!-- AI Insight Card -->
+      <div class="aic">
+        <div class="aich">
+          <div class="aict">&#129302;&nbsp;AI Security Insight&nbsp;<div class="scrit">Critical Risk</div></div>
+          <div class="aibadge">&#10022; Nemotron Verified</div>
+        </div>
+        <div class="aicb">
+          <div class="rt">Recommendations</div>
+          <div class="rec">Enable full TLS certificate chain validation via <code>certifi.where()</code></div>
+          <div class="rec">Require TLS 1.2+ via session-level <code>ssl.PROTOCOL_TLS_CLIENT</code></div>
+          <div class="rec">Set bounded request timeout &mdash; unbounded connections expose to slowloris DoS</div>
+          <div class="rec">Pin certificate fingerprint for internal services to prevent MITM attacks</div>
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="ab">
+        <button class="bpri">&#128256; Create PR with Fix</button>
+        <button class="bgh">&#128065; Ignore Finding</button>
+        <button class="bgh">&#128203; Copy Patch</button>
+        <div class="ciw">
+          <span style="color:var(--muted);font-size:14px">&#128172;</span>
+          <input class="cin" type="text" placeholder="Discuss with AI...  (e.g. Why is verify=False dangerous?)"/>
+          <button class="csb">&#10148;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPLORER COLUMN -->
+    <div class="exp">
+      <div class="exph">
+        <div class="expt">&#128193; File Explorer</div>
+        <div class="sortd">Sort by Risk &#9662;</div>
+      </div>
+      <div class="exps">
+        <div class="exst"><div class="esv cr">5</div><div class="esl">Critical</div></div>
+        <div class="exst"><div class="esv co">24</div><div class="esl">High</div></div>
+        <div class="exst"><div class="esv cg">3</div><div class="esl">Fixed</div></div>
+      </div>
+      <div class="ftree">
+        <div class="tf"><span class="tc">&#9662;</span><span>&#128230;</span><span>backend/</span></div>
+        <div class="tfs">
+          <div class="tf"><span class="tc">&#9662;</span><span>&#128194;</span><span>app/api/v1/</span></div>
+          <div class="tfs">
+            <div class="tfi active vuln"><span class="fic">&#128013;</span><span class="fnm">findings.py</span><span class="rtag rtc">1 Critical</span></div>
+            <div class="tfi vuln"><span class="fic">&#128013;</span><span class="fnm">auth.py</span><span class="rtag rth">2 High</span></div>
+            <div class="tfi vuln"><span class="fic">&#128013;</span><span class="fnm">files.py</span><span class="rtag rth">1 High</span></div>
+            <div class="tfi safe"><span class="fic">&#128013;</span><span class="fnm">dependencies.py</span><span class="rtag rts">Clean</span></div>
+            <div class="tfi safe"><span class="fic">&#128013;</span><span class="fnm">chat.py</span><span class="rtag rts">Clean</span></div>
+          </div>
+          <div class="tf"><span class="tc">&#9662;</span><span>&#128194;</span><span>guardian/engines/</span></div>
+          <div class="tfs">
+            <div class="tfi vuln"><span class="fic">&#128013;</span><span class="fnm">security.py</span><span class="rtag rth">3 High</span></div>
+            <div class="tfi vuln"><span class="fic">&#128013;</span><span class="fnm">quantum.py</span><span class="rtag rtc">1 Critical</span></div>
+            <div class="tfi safe"><span class="fic">&#128013;</span><span class="fnm">dependency.py</span><span class="rtag rts">Clean</span></div>
+          </div>
+          <div class="tf"><span class="tc">&#9658;</span><span>&#128194;</span><span>frontend/src/</span></div>
+          <div class="tf"><span class="tc">&#9658;</span><span>&#128194;</span><span>tests/</span></div>
+        </div>
+      </div>
+      <div class="rems">
+        <div class="remh">Remediation Progress <span>+3 today</span></div>
+        <div class="rrow"><span class="rlb" style="color:#FCA5A5">Critical</span><div class="rbar"><div class="rbari" style="width:40%;background:var(--red)"></div></div><span class="rval" style="color:#FCA5A5">2/5</span></div>
+        <div class="rrow"><span class="rlb" style="color:#FDB89A">High</span><div class="rbar"><div class="rbari" style="width:33%;background:var(--accent)"></div></div><span class="rval" style="color:#FDB89A">8/24</span></div>
+        <div class="rrow"><span class="rlb" style="color:#FCD34D">Medium</span><div class="rbar"><div class="rbari" style="width:50%;background:var(--amber)"></div></div><span class="rval" style="color:#FCD34D">5/10</span></div>
+      </div>
+      <div class="cwes">
+        <div class="cwet">Active CWE Coverage</div>
+        <div class="cwetags">
+          <span class="ct">CWE-295</span><span class="ct">CWE-89</span><span class="ct">CWE-78</span>
+          <span class="ct">CWE-798</span><span class="ct">CWE-327</span><span class="ct">CWE-22</span>
+          <span class="ct">CWE-502</span><span class="ct">PQC-L1</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

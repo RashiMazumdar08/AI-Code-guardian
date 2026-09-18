@@ -1,0 +1,20 @@
+# AI layer — NVIDIA Nemotron contextual reasoning + local RAG.
+# Entirely optional: without these (or without NVIDIA_API_KEY) the platform
+# runs deterministic analysis and reports the AI layer as unavailable.
+
+openai>=1.30.0                 # NVIDIA's OpenAI-compatible endpoint client
+requests>=2.31.0               # REST fallback transport
+
+# Vector RAG. Without them, reasoning falls back to the curated knowledge
+# pack in data/knowledge/, which covers the standards the prompts need.
+sentence-transformers>=2.7.0   # LOCAL embeddings (never sent to a remote API)
+faiss-cpu>=1.8.0               # vector index
+numpy>=1.24.0
+
+# Optional — CodeBERT semantic analysis for source-code chunks
+transformers>=4.40.0
+torch>=2.2.0
+
+# Optional — rich requirement-document ingestion
+pypdf>=4.0.0
+python-docx>=1.1.0
