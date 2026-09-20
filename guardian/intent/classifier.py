@@ -80,7 +80,8 @@ class DomainClassifier:
         src = [f for f in files if f.suffix.lower() in (".java", ".py", ".js", ".ts", ".go", ".cs")]
         for fp in src[: self.MAX_CODE_FILES]:
             try:
-                text = fp.read_text(encoding="utf-8", errors="ignore")[:20_000]
+                abs_fp = fp if fp.is_absolute() else repo_root / fp
+                text = abs_fp.read_text(encoding="utf-8", errors="ignore")[:20_000]
             except OSError:
                 continue
             for ident in re.findall(r"\b(?:class|def|interface|func)\s+(\w+)", text):

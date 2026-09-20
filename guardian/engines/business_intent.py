@@ -233,8 +233,15 @@ class BusinessIntentEngine(BaseEngine):
             line=function.line, end_line=function.span.end_line,
             parameters=list(function.parameters))
 
-        body = [n for n in ust_file.nodes
-                if n is not function and n.enclosing_function == function.name]
+        nodes_by_func = getattr(ust_file, "_nodes_by_func", None)
+        if nodes_by_func is None:
+            nodes_by_func = {}
+            for n in ust_file.nodes:
+                if n.enclosing_function:
+                    nodes_by_func.setdefault(n.enclosing_function, []).append(n)
+            setattr(ust_file, "_nodes_by_func", nodes_by_func)
+
+        body = [n for n in nodes_by_func.get(function.name, []) if n is not function]
 
         for node in body:
             if node.type is USTNodeType.CONDITIONAL:

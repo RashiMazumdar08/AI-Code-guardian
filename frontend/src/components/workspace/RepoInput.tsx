@@ -1,20 +1,63 @@
 "use client";
 
 import React from "react";
-import { Search, FolderGit2, Loader2, Play, CheckCircle2, Sparkles } from "lucide-react";
+import { Search, FolderGit2, Loader2, Play, CheckCircle2, Sparkles, Shield } from "lucide-react";
+import { useScanState } from "../../context/ScanStateContext";
 
 interface RepoInputProps {
   onScan: (target: string, isUrl: boolean, aiEnabled: boolean) => void;
-  isScanning: boolean;
+  isScanning?: boolean;
 }
 
-export default function RepoInput({ onScan, isScanning }: RepoInputProps) {
+export default function RepoInput({ onScan }: RepoInputProps) {
   const [target, setTarget] = React.useState("");
+  const { scanPhase } = useScanState();
+
+  const isScanning = ["FETCHING", "WALKING", "PARSING", "SCANNING"].includes(scanPhase);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!target.trim()) return;
-    onScan(target.trim(), true, true);
+    if (!target.trim() || isScanning) return;
+    const isUrl = target.includes("github.com") || target.startsWith("http://") || target.startsWith("https://");
+    onScan(target.trim(), isUrl, false);
+  };
+
+  const renderBadge = () => {
+    switch (scanPhase) {
+      case "COMPLETE":
+        return (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-semibold select-none">
+            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+            RESULTS READY
+          </div>
+        );
+      case "AGENTIC_RUNNING":
+        return (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ff5400]/15 border border-[#ff5400]/40 text-[#ff5400] text-[10px] font-mono font-semibold select-none animate-pulse">
+            <Sparkles className="h-3 w-3 text-[#ff5400]" />
+            AI ANALYSIS ACTIVE
+          </div>
+        );
+      case "AGENTIC_COMPLETE":
+        return (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-mono font-semibold select-none">
+            <Sparkles className="h-3 w-3 text-amber-300" />
+            AI ENRICHMENT READY
+          </div>
+        );
+      case "FETCHING":
+      case "WALKING":
+      case "PARSING":
+      case "SCANNING":
+      case "IDLE":
+      default:
+        return (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/8 border border-white/20 text-[#f4f4f8] text-[10px] font-mono font-semibold select-none">
+            <Shield className="h-3 w-3 text-[#8e8e9a]" />
+            DETERMINISTIC SCAN
+          </div>
+        );
+    }
   };
 
   return (
@@ -42,17 +85,14 @@ export default function RepoInput({ onScan, isScanning }: RepoInputProps) {
             </div>
           </div>
 
-          {/* Always-on Status Badges */}
+          {/* Dynamic Status Badges */}
           <div className="flex items-center gap-2.5 pb-1 shrink-0">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/8 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-semibold select-none">
               <CheckCircle2 className="h-3 w-3" />
               GITHUB URL
             </div>
 
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ff5400]/8 border border-[#ff5400]/20 text-[#ff5400] text-[10px] font-mono font-semibold select-none">
-              <Sparkles className="h-3 w-3" />
-              AI ANALYSIS ACTIVE
-            </div>
+            {renderBadge()}
           </div>
 
           {/* Run Scan Button */}
@@ -64,7 +104,7 @@ export default function RepoInput({ onScan, isScanning }: RepoInputProps) {
             {isScanning ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                SCANNING
+                {scanPhase === "FETCHING" ? "FETCHING" : scanPhase === "PARSING" ? "PARSING" : "SCANNING"}
               </>
             ) : (
               <>

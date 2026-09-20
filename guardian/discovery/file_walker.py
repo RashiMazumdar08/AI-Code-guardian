@@ -78,11 +78,7 @@ class FileWalker:
         count = 0
 
         for dirpath, dirnames, filenames in os.walk(root, followlinks=cfg.follow_symlinks):
-            dirnames[:] = [d for d in dirnames
-                           if d not in cfg.ignore_dirs
-                           and not d.startswith(".git")
-                           and not d.startswith(".venv")
-                           and not d.startswith("venv")]
+            dirnames[:] = [d for d in dirnames if d not in cfg.ignore_dirs]
 
             if cfg.follow_symlinks:
                 # cycle guard: never re-enter a directory we've resolved before

@@ -118,7 +118,7 @@ class GitHubService:
         else:
             clone_url = f"https://github.com/{owner}/{repo}.git"
 
-        cmd = ["git", "clone", "--depth", "1"]
+        cmd = ["git", "clone", "--depth", "1", "--single-branch"]
         if ref:
             cmd.extend(["--branch", ref])
         cmd.extend([clone_url, str(dest_dir)])

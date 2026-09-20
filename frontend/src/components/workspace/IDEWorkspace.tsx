@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import RepoInput from "./RepoInput";
-import FileTreeSidebar, { FileNode } from "./FileTreeSidebar";
+import FileTreeSidebar from "./FileTreeSidebar";
 import CodeViewer from "./CodeViewer";
 import VulnerabilityPanel from "./VulnerabilityPanel";
+import ScanProgressPanel from "./ScanProgressPanel";
 import { Loader2 } from "lucide-react";
+import { useScanState } from "../../context/ScanStateContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -14,39 +16,29 @@ interface IDEWorkspaceProps {
 }
 
 export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanId, setScanId] = useState<string | null>(null);
-  const [fileTree, setFileTree] = useState<FileNode | null>(null);
-  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
-  const [fileContent, setFileContent] = useState<string>("// Select a file from the explorer to view its content.");
-  const [findings, setFindings] = useState<any[]>([]);
-  const [scanFindingsMap, setScanFindingsMap] = useState<Record<string, any[]>>({});
+  const {
+    scanPhase,
+    scanId,
+    setScanId,
+    fileTree,
+    selectedFilePath,
+    setSelectedFilePath,
+    fileContent,
+    setFileContent,
+    findings,
+    setFindings,
+    scanFindingsMap,
+    setScanFindingsMap,
+    startScan,
+    updateScanPhase,
+    completeScan,
+  } = useScanState();
 
-  // Restore state from sessionStorage on mount
-  useEffect(() => {
-    try {
-      const savedScanId = sessionStorage.getItem("guardian_scan_id");
-      const savedFileTree = sessionStorage.getItem("guardian_file_tree");
-      const savedMap = sessionStorage.getItem("guardian_findings_map");
-      const savedPath = sessionStorage.getItem("guardian_selected_path");
-      const savedContent = sessionStorage.getItem("guardian_file_content");
-      const savedFindings = sessionStorage.getItem("guardian_file_findings");
+  const isScanning = ["FETCHING", "WALKING", "PARSING", "SCANNING"].includes(scanPhase);
 
-      if (savedScanId) setScanId(savedScanId);
-      if (savedFileTree) setFileTree(JSON.parse(savedFileTree));
-      if (savedMap) setScanFindingsMap(JSON.parse(savedMap));
-      if (savedPath) setSelectedFilePath(savedPath);
-      if (savedContent) setFileContent(savedContent);
-      if (savedFindings) setFindings(JSON.parse(savedFindings));
-    } catch (e) {
-      console.warn("Failed to load workspace state from sessionStorage:", e);
-    }
-  }, []);
-
-  // Save state to sessionStorage
   const saveStateToStorage = (
     newScanId: string | null,
-    newTree: FileNode | null,
+    newTree: any | null,
     newMap: Record<string, any[]>,
     newPath: string | null = selectedFilePath,
     newContent: string = fileContent,
@@ -65,25 +57,24 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
   };
 
   const handleScan = async (target: string, isUrl: boolean, aiEnabled: boolean) => {
-    setIsScanning(true);
-    setScanId(null);
-    setFileTree(null);
-    setSelectedFilePath(null);
-    setFileContent("// Scan in progress...");
-    setScanFindingsMap({});
+    startScan();
+    const generatedScanId = `scan_${Date.now()}`;
+    setScanId(generatedScanId);
 
     try {
       const payload: any = {
+        scan_id: generatedScanId,
         scan_mode: "precision",
         enable_ai: aiEnabled,
       };
-      
+
       if (isUrl) {
         payload.repo_url = target;
       } else {
         payload.target_path = target;
       }
 
+      updateScanPhase("FETCHING");
       const res = await fetch(`${API_BASE}/api/v1/scans`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -94,19 +85,16 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
         let errMsg = "Scan failed";
         try {
           const errData = await res.json();
-          console.error("Scan failed - Server Error Detail:", errData);
           if (errData.detail) {
             errMsg = typeof errData.detail === "string" ? errData.detail : JSON.stringify(errData.detail);
           }
-        } catch (e) {
-          console.error("Could not parse scan error response JSON:", e);
-        }
+        } catch (e) {}
         throw new Error(errMsg);
       }
 
+      updateScanPhase("PARSING");
       const data = await res.json();
       const newScanId = data.scan_id;
-      setScanId(newScanId);
 
       // Extract findings and map by file path
       const allFindings = data.result?.scan?.findings || data.result?.findings || [];
@@ -119,31 +107,27 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
       });
       setScanFindingsMap(map);
 
-      // Notify parent component of completed scan -- newScanId is also
-      // passed through (additive 2nd arg) so callers can tie downstream
-      // agentic-enrichment state to the exact scan_id this report came
-      // from, without reaching into sessionStorage themselves.
       if (onScanComplete) {
         onScanComplete(data.result, newScanId);
       }
 
       // Fetch File Tree
-      let fetchedTree: FileNode | null = null;
+      let fetchedTree: any | null = null;
       const treeRes = await fetch(`${API_BASE}/api/v1/files/tree?scan_id=${newScanId}`);
       if (treeRes.ok) {
         fetchedTree = await treeRes.json();
-        setFileTree(fetchedTree);
       }
-      const initialMsg = "// Scan complete. Select a file from the explorer to view.";
+
+      const initialMsg = "Select a file to view its security findings.";
+      completeScan(newScanId, fetchedTree, map);
       setFileContent(initialMsg);
 
       saveStateToStorage(newScanId, fetchedTree, map, null, initialMsg, []);
 
     } catch (err: any) {
       console.error("Scan execution error:", err);
+      completeScan("", null, {});
       setFileContent(`// Error occurred during scan:\n// ${err.message || "Check console for details."}`);
-    } finally {
-      setIsScanning(false);
     }
   };
 
@@ -152,7 +136,7 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
     const fileFindings = scanFindingsMap[path] || [];
     setFindings(fileFindings);
     setFileContent("// Loading file...");
-    
+
     if (scanId) {
       try {
         const res = await fetch(`${API_BASE}/api/v1/files/content?scan_id=${scanId}&path=${encodeURIComponent(path)}`);
@@ -181,7 +165,6 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
 
     let replacement = originalLine;
 
-    // Call backend AutoFix service
     try {
       const res = await fetch(`${API_BASE}/api/v1/findings/autofix`, {
         method: "POST",
@@ -206,7 +189,6 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
       console.warn("Backend autofix call failed, using client-side rule transformer:", e);
     }
 
-    // Client-side fallback transformer if backend didn't transform or errored
     if (replacement === originalLine) {
       const cat = (finding.category || finding.title || "").toLowerCase();
       const cwe = (finding.cwe || finding.cwe_id || "").toUpperCase();
@@ -233,7 +215,6 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
       } else if (finding.remediation_patch) {
         replacement = `${indent}${finding.remediation_patch.trim()}`;
       } else {
-        // Never replace line with just a comment! Preserve code and add inline remediation tag
         replacement = `${indent}${trimmed}  # remediated: ${finding.category || "security-fix"}`;
       }
     }
@@ -242,7 +223,6 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
     const updatedContent = lines.join('\n');
     setFileContent(updatedContent);
 
-    // Save updated content state to storage
     if (scanId && selectedFilePath) {
       saveStateToStorage(scanId, fileTree, scanFindingsMap, selectedFilePath, updatedContent, findings);
     }
@@ -275,10 +255,11 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
         {/* File Tree Sidebar */}
         <div className="w-60 shrink-0 overflow-hidden">
           {isScanning ? (
-            <div className="h-full flex flex-col items-center justify-center text-[#ff5400] gap-3 bg-[#0c0d11]">
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span className="text-xs font-mono font-semibold tracking-wider text-[#8e8e9a]">SCANNING...</span>
-            </div>
+            <ScanProgressPanel
+              scanId={scanId}
+              apiBase={API_BASE}
+              isScanning={isScanning}
+            />
           ) : (
             <FileTreeSidebar
               tree={fileTree}
@@ -319,4 +300,3 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
     </div>
   );
 }
-

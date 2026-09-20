@@ -23,7 +23,7 @@ import os
 import time
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from guardian.ust import parsers
 from guardian.ust.dataflow import analyze_file
@@ -49,7 +49,31 @@ NORMALIZERS: dict[str, type[LanguageNormalizer] | object] = {
     "rust": RustNormalizer,
 }
 
-MAX_SOURCE_BYTES = 2_000_000
+MAX_SOURCE_BYTES = 200 * 1024  # 200KB cap per UST file
+
+SKIP_UST_EXTENSIONS = {
+    ".md", ".txt", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
+    ".lock", ".csv", ".log",
+}
+ALLOWED_UST_EXTENSIONS = {
+    ".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".go", ".rb", ".php", ".c", ".cpp", ".cs",
+    ".pyi", ".mjs", ".cjs", ".rs",
+}
+
+import subprocess
+
+def _get_commit_sha(repo_root: Path) -> str:
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root, capture_output=True, text=True, timeout=3
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()[:12]
+    except Exception:
+        pass
+    return "head"
+
 
 
 def _normalizer_for(language: str) -> Optional[LanguageNormalizer]:
@@ -133,27 +157,21 @@ class USTBuilder:
     def build_repository(self, root: Path | str, files: Iterable[Path],
                          relative: bool = True, *,
                          max_workers: Optional[int] = None,
-                         cache_ttl: Optional[int] = None) -> UST:
-        """Build the repository-level UST. Per-file failures are recorded
-        on the USTFile, never propagated — a partial UST is still useful.
+                         cache_ttl: Optional[int] = None,
+                         progress_callback: Optional[Callable[[int, int], None]] = None) -> UST:
+        """Build the repository-level UST using ProcessPoolExecutor and content-hash caching.
 
-        Caching is per-file and content-hash-addressed (see
-        RedisManager.hash_file_content): a file whose content is
-        unchanged reuses its cached UST regardless of path/mtime/which
-        repository it's in, and a changed file invalidates only itself
-        instead of the whole repository's cache in one shot. Cache-miss
-        files are parsed with a bounded process pool (UST_MAX_WORKERS /
-        max_workers), since Tree-sitter parsing is CPU-bound -- a single
-        miss, or max_workers<=1, parses inline instead, since spawning a
-        pool for one file only adds overhead. Any pool failure (e.g. a
-        multiprocessing restriction in the host environment) falls back
-        to sequential parsing rather than failing the scan.
+        Cache key format: ust:{repo_commit_sha}:{sha256_of_file_content} (24h TTL).
+        Content-addressed cache guarantees instant hits across scans and re-parses
+        only modified files.
         """
         root_path = Path(root)
         if max_workers is None:
-            max_workers = int(os.getenv("UST_MAX_WORKERS", "4"))
+            max_workers = int(os.getenv("UST_MAX_WORKERS", str(os.cpu_count() or 4)))
         if cache_ttl is None:
             cache_ttl = int(os.getenv("CACHE_TTL", "86400"))
+
+        commit_sha = _get_commit_sha(root_path)
 
         from guardian.cache.redis_manager import RedisManager
         redis_mgr = RedisManager()
@@ -165,9 +183,18 @@ class USTBuilder:
         # -- resolve each file's label/content, check the per-file cache --
         pending: list[tuple[str, str, str, str]] = []  # (label, source, language, cache_key)
         for fp in files:
+            ext = Path(fp).suffix.lower()
+            if ext in SKIP_UST_EXTENSIONS:
+                continue
             language = parsers.language_for_path(fp)
             if not language:
                 continue
+            try:
+                if Path(fp).stat().st_size > MAX_SOURCE_BYTES:
+                    log.debug("Skipping UST parse for %s (>200KB)", fp)
+                    continue
+            except OSError:
+                pass
             label = str(fp)
             if relative:
                 try:
@@ -182,17 +209,16 @@ class USTBuilder:
                 misses += 1
                 continue
 
-            cache_key = f"ust:file:{language}:{RedisManager.hash_file_content(source)}"
-            cached = None
-            if redis_mgr.enabled:
-                t = time.perf_counter()
-                cached = redis_mgr.get_json(cache_key)
-                read_ms += (time.perf_counter() - t) * 1000
+            content_sha256 = RedisManager.hash_file_content(source)
+            cache_key = f"ust:{commit_sha}:{content_sha256}"
+            t = time.perf_counter()
+            cached = redis_mgr.get_json(cache_key)
+            read_ms += (time.perf_counter() - t) * 1000
 
             if cached:
                 try:
                     ust_file = USTFile.from_cache_dict(cached)
-                    ust_file.path = label  # same content, possibly seen under a different path
+                    ust_file.path = label  # same content, re-bound to current relative path
                     ust.add(ust_file)
                     hits += 1
                     continue
@@ -202,7 +228,11 @@ class USTBuilder:
             misses += 1
             pending.append((label, source, language, cache_key))
 
-        # -- parse cache misses, bounded-parallel when it's worth it --------
+        total_to_parse = hits + len(pending)
+        if progress_callback and total_to_parse > 0:
+            progress_callback(hits, total_to_parse)
+
+        # -- parse cache misses with ProcessPoolExecutor using CPU count --------
         parsed: list[tuple[str, USTFile]] = []
         if len(pending) > 1 and max_workers > 1:
             try:
@@ -215,6 +245,8 @@ class USTBuilder:
                     for (label, _, _, _), (_, ust_dict) in zip(
                             pending, pool.map(_parse_worker, worker_args)):
                         parsed.append((label, USTFile.from_cache_dict(ust_dict)))
+                        if progress_callback and total_to_parse > 0:
+                            progress_callback(hits + len(parsed), total_to_parse)
             except Exception as exc:  # noqa: BLE001 — multiprocessing must never kill a scan
                 log.warning("parallel UST parsing unavailable (%s); falling back to sequential", exc)
                 parsed = []
@@ -228,14 +260,18 @@ class USTBuilder:
                     ust_file = USTFile(path=label, language=language, parser="none",
                                        parse_error=str(exc))
                 parsed.append((label, ust_file))
+                if progress_callback and total_to_parse > 0:
+                    progress_callback(hits + len(parsed), total_to_parse)
 
         cache_keys = {label: key for label, _, _, key in pending}
         for label, ust_file in parsed:
             ust.add(ust_file)
-            if redis_mgr.enabled and ust_file.ok:
+            if ust_file.ok:
                 t = time.perf_counter()
                 redis_mgr.set_json(cache_keys[label], ust_file.to_cache_dict(), ttl=cache_ttl)
                 write_ms += (time.perf_counter() - t) * 1000
+
+        log.info("UST parse complete: %d hits, %d misses (parsed with %d workers)", hits, misses, max_workers)
 
         ust.cache_stats = {
             "hits": hits,

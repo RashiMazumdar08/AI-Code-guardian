@@ -44,6 +44,8 @@ async def is_postgres_available() -> bool:
     Falls back to False gracefully if offline, missing drivers, or unreachable.
     """
     global _is_postgres_healthy
+    if _is_postgres_healthy is False:
+        return False
     db_url = get_database_url()
     if not db_url.startswith("postgresql"):
         _is_postgres_healthy = False

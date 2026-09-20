@@ -99,6 +99,7 @@ class ScanResult:
     started_at: float = field(default_factory=time.time)
     finished_at: Optional[float] = None
     scan_mode: str = "precision"
+    scan_breakdown: dict = field(default_factory=dict)
 
     def finish(self):
         self.finished_at = time.time()
@@ -157,4 +158,5 @@ class ScanResult:
             "by_severity": self.counts_by_severity,
             "by_category": self.counts_by_category,
             "findings": [f.to_dict() for f in self.findings],
+            "scan_breakdown": self.scan_breakdown,
         }

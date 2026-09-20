@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -53,27 +54,33 @@ class RedisManager:
             log.warning("Redis is not available at %s (%s). Caching disabled.", self.url, e)
             self.enabled = False
 
+    _mem_cache: dict[str, tuple[float, str]] = {}
+
     def get_json(self, key: str) -> Optional[Any]:
-        if not self.enabled:
-            return None
-        try:
-            val = self.client.get(key)
-            if val:
-                return json.loads(val)
-        except Exception as e:
-            log.debug("Redis GET failed for %s: %s", key, e)
+        if self.enabled:
+            try:
+                val = self.client.get(key)
+                if val:
+                    return json.loads(val)
+            except Exception as e:
+                log.debug("Redis GET failed for %s: %s", key, e)
+        item = RedisManager._mem_cache.get(key)
+        if item:
+            exp, val_str = item
+            if time.time() < exp:
+                return json.loads(val_str)
+            RedisManager._mem_cache.pop(key, None)
         return None
 
     def set_json(self, key: str, value: Any, ttl: int = 86400) -> bool:
-        if not self.enabled:
-            return False
-        try:
-            val_str = json.dumps(value)
-            self.client.set(key, val_str, ex=ttl)
-            return True
-        except Exception as e:
-            log.debug("Redis SET failed for %s: %s", key, e)
-            return False
+        val_str = json.dumps(value)
+        if self.enabled:
+            try:
+                self.client.set(key, val_str, ex=ttl)
+            except Exception as e:
+                log.debug("Redis SET failed for %s: %s", key, e)
+        RedisManager._mem_cache[key] = (time.time() + ttl, val_str)
+        return True
 
     @staticmethod
     def hash_file_content(content: str | bytes) -> str:

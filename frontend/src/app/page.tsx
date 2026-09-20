@@ -11,6 +11,7 @@ import { buildMindMapFromScan } from "../components/mindmap/utils";
 import BusinessIntentPage from "../components/intent/BusinessIntentPage";
 import AgenticExecutionDrawer from "../components/agentic-scan/AgenticExecutionDrawer";
 import { useAgenticScan } from "../components/agentic-scan/useAgenticScan";
+import { ScanStateProvider, useScanState } from "../context/ScanStateContext";
 import AIThreatAnalysisSection from "../components/enrichment/AIThreatAnalysisSection";
 import AIRiskCorrelationSection from "../components/enrichment/AIRiskCorrelationSection";
 import DashboardTab from "../components/dashboard/DashboardTab";
@@ -268,6 +269,7 @@ function AppInner() {
      private storage. Used to decide whether a cached/live agentic run
      actually corresponds to the report shown right now. */
   const [currentScanId, setCurrentScanId] = useState<string | null>(null);
+  const scanState = useScanState();
 
   /* Lifted from AgenticScanTab so its live run state survives navigating
      away to Security / Business Intent -- those tabs read from the SAME
@@ -429,23 +431,24 @@ function AppInner() {
      different scan_id must never be shown as if it enriches this report. */
   const agenticMatchesCurrentScan = !!currentScanId && agentic.sourceScanId === currentScanId;
 
+  useEffect(() => {
+    if (agentic.workflowStatus === "running" || agentic.workflowStatus === "starting") {
+      scanState.setScanPhase("AGENTIC_RUNNING");
+    } else if (agentic.workflowStatus === "completed") {
+      scanState.setScanPhase("AGENTIC_COMPLETE");
+    }
+  }, [agentic.workflowStatus, scanState]);
+
   const runAgenticForCurrentScan = useCallback(() => {
-    // No deterministic scan_id yet -- the agentic layer is purely an
-    // enrichment pass over an EXISTING deterministic scan (see
-    // backend/app/api/v1/agentic_scan.py: it 400s without a real,
-    // still-in-memory source scan_id). Rather than a silent no-op, send
-    // the user to where they can actually produce one.
     if (!currentScanId) {
       alert("Run a scan in IDE Workspace first — Agentic Analysis enriches an existing deterministic scan, it doesn't run standalone.");
       navigateTo("workspace");
       return;
     }
+    scanState.startAgentic();
     agentic.start({ scanId: currentScanId, scanMode: "full_scan" });
-    // Opens the Agentic Execution drawer over whichever tab the person is
-    // currently on (see AgenticExecutionDrawer) instead of navigating to a
-    // standalone tab, which the v2.1.0 nav consolidation removed.
     navigateTo(activeTab, { agentic: "1" });
-  }, [currentScanId, agentic, navigateTo, activeTab]);
+  }, [currentScanId, agentic, navigateTo, activeTab, scanState]);
 
   const handleDownloadReport = async (fmt: string) => {
     // POST the report currently on screen so the download always matches
@@ -871,7 +874,7 @@ function AppInner() {
                       shown once a deterministic scan exists on screen.
                       Agentic analysis is purely an enrichment pass over
                       these findings, never a second, independent scan. */}
-                  {currentScanId && (
+                  {currentScanId && !["FETCHING", "WALKING", "PARSING", "SCANNING"].includes(scanState.scanPhase) && (
                     <div className="rounded-xl bg-[#12131a] border border-violet-500/25 p-4 flex items-center justify-between flex-wrap gap-3">
                       <div>
                         <p className="text-[11px] font-mono font-bold text-[#f4f4f8]">
@@ -1054,7 +1057,9 @@ function AppInner() {
 export default function Home() {
   return (
     <Suspense>
-      <AppInner />
+      <ScanStateProvider>
+        <AppInner />
+      </ScanStateProvider>
     </Suspense>
   );
 }

@@ -4,6 +4,8 @@ AI Code Guardian - Async FastAPI Application
 REST API Backend wrapping guardian scanner, PostgreSQL/pgvector persistence, and Nemotron AI reasoning.
 """
 from __future__ import annotations
+import os
+os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

@@ -21,19 +21,14 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None
 
-DEFAULT_IGNORE_DIRS = {
-    ".git", ".hg", ".svn", "node_modules", "dist", "build", "target",
-    "venv", ".venv", ".venv-app", "env", ".idea", ".vscode", "coverage", "__pycache__",
-    ".mypy_cache", ".pytest_cache", ".tox", "vendor", "bower_components",
-    ".next", ".nuxt", ".turbo", ".output", ".acg_index", "tests",
-    "obj", ".cache",  # .NET/MSBuild artifact dir and generic tool caches.
-    # NOTE: deliberately NOT adding "bin" here even though the spec lists it --
-    # unlike "obj" (exclusively a .NET/MSBuild artifact dir, and this tool
-    # doesn't scan C#), "bin/" legitimately holds real JS/TS source in many
-    # npm packages (the CLI entrypoint convention) and Ruby gems. Silently
-    # excluding real source from a SECURITY scanner is a worse failure mode
-    # than scanning a few extra files, so this stays a per-repo opt-in via
-    # ignore_dirs rather than a blanket default.
+DEFAULT_JUNK_DIRS = {
+    "node_modules", ".git", ".next", "dist", "build", "coverage", "__pycache__",
+    ".venv", "venv", ".cache", "target", "vendor", "bin", "obj", ".idea", ".vscode",
+}
+
+DEFAULT_IGNORE_DIRS = DEFAULT_JUNK_DIRS | {
+    ".hg", ".svn", ".venv-app", "env", ".mypy_cache", ".pytest_cache", ".tox",
+    "bower_components", ".nuxt", ".turbo", ".output", ".acg_index", "tests",
 }
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "default.yaml"
@@ -50,7 +45,7 @@ class GuardianConfig:
     # env-driven, it doesn't change how they're used.
     max_files: int = field(default_factory=lambda: int(os.getenv("MAX_FILES", "200000")))
     max_file_bytes: int = field(default_factory=lambda: int(
-        float(os.getenv("MAX_FILE_SIZE_MB", "2")) * 1_000_000))  # skip files larger than this many MB
+        float(os.getenv("MAX_FILE_SIZE_MB", "0.2")) * 1_000_000))  # skip files larger than this many MB (200KB max default)
     # Exclude test files (foo.spec.ts, test_foo.py, FooTest.java, ...) from
     # the security-scanned source set. Directory-based ignore_dirs can't
     # catch these on its own: Angular/Jest/Jasmine conventions put
@@ -64,7 +59,7 @@ class GuardianConfig:
     # analysis toggles
     enable_dependencies: bool = True
     enable_infrastructure: bool = True
-    enable_quantum: bool = True
+    enable_quantum: bool = False
     enable_quantum_gate: bool = False  # opt-in: hard-block merges on Shor-class crypto inventory
     enable_intent: bool = True
     enable_threat_intel: bool = False   # requires network; off by default
@@ -102,7 +97,7 @@ class GuardianConfig:
     # the same scan can assign different ID *numbers* to the same evidence
     # on different runs. Same findings, same evidence, different E-numbers.
     # An operator who wants the speed and accepts that opts in explicitly.
-    engine_max_workers: int = field(default_factory=lambda: int(os.getenv("ENGINE_MAX_WORKERS", "1")))
+    engine_max_workers: int = field(default_factory=lambda: int(os.getenv("ENGINE_MAX_WORKERS", "4")))
 
     extras: dict[str, Any] = field(default_factory=dict)
 

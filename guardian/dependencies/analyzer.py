@@ -31,7 +31,7 @@ MAX_OSV_LOOKUPS = 150
 class DependencyAnalyzer:
     name = "dependencies"
 
-    def __init__(self, enable_osv: bool = True):
+    def __init__(self, enable_osv: bool = False):
         self.enable_osv = enable_osv
 
     def collect(self, files: Iterable[Path]) -> list[Dependency]:

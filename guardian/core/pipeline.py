@@ -67,20 +67,48 @@ class ScanPipeline:
     # ------------------------------------------------------------------
     def scan(self, repo_root: str | Path,
              alignment_score: Optional[float] = None,
-             business_requirements: Optional[list[str | Path]] = None) -> dict:
+             business_requirements: Optional[list[str | Path]] = None,
+             progress_callback: Optional[Callable[[dict], None]] = None) -> dict:
         """Run the full pipeline. Returns the aggregate report dict."""
         t0 = time.time()
         cfg = self.config
-        # Per-stage dev timing (report["timings"]) -- measured, never
-        # invented. A stage that doesn't run in this code path (e.g.
-        # LangGraph, which only executes via the separate /agentic-scan
-        # endpoint) is recorded as None, not 0, so "didn't run" is never
-        # confused with "ran instantly".
         timings: dict[str, Any] = {}
 
-        t_stage = time.time()
+        github_fetch_s = 0.0
+        file_walk_s = 0.0
+        file_walk_count = 0
+        ust_parse_s = 0.0
+        ust_parse_count = 0
+        sast_rules_s = 0.0
+        dependency_scan_s = 0.0
+        risk_business_s = 0.0
+
+        def emit_progress(stage: str, status: str = "running", done: int = 0, total: int = 0):
+            if progress_callback:
+                try:
+                    progress_callback({
+                        "stage": stage,
+                        "status": status,
+                        "files_done": done,
+                        "files_total": total,
+                        "stage_timings": {
+                            "github_fetch": round(github_fetch_s, 2),
+                            "file_walk": round(file_walk_s, 2),
+                            "ust_parse": round(ust_parse_s, 2),
+                            "sast_rules": round(sast_rules_s, 2),
+                            "dependency_scan": round(dependency_scan_s, 2),
+                            "risk_business": round(risk_business_s, 2),
+                        },
+                    })
+                except Exception as exc:  # noqa: BLE001
+                    log.debug("progress_callback failed: %s", exc)
+
+        emit_progress("github_fetch", "running")
+        t_fetch_stage = time.time()
         repo_root = self._resolve_target(repo_root)
-        timings["repository_fetch_ms"] = round((time.time() - t_stage) * 1000, 1)
+        github_fetch_s = time.time() - t_fetch_stage
+        timings["repository_fetch_ms"] = round(github_fetch_s * 1000, 1)
+        emit_progress("github_fetch", "done")
 
         if cfg.enable_sandbox:
             return self._scan_in_sandbox(
@@ -91,15 +119,19 @@ class ScanPipeline:
             )
 
         # 1. Discovery ---------------------------------------------------
-        t_stage = time.time()
+        emit_progress("file_walk", "running")
+        t_walk_stage = time.time()
         walker = FileWalker(cfg)
         source_extensions = self.registry.supported_extensions | parsers.supported_extensions()
         discovered: DiscoveredFiles = walker.discover(
             repo_root, source_extensions=source_extensions)
+        file_walk_s = time.time() - t_walk_stage
+        file_walk_count = len(discovered.all_files)
         log.info("discovered %d source / %d manifest / %d infra files",
                  len(discovered.source), len(discovered.manifests),
                  len(discovered.infrastructure))
-        timings["file_discovery_ms"] = round((time.time() - t_stage) * 1000, 1)
+        timings["file_discovery_ms"] = round(file_walk_s * 1000, 1)
+        emit_progress("file_walk", "done", file_walk_count, file_walk_count)
 
         # 2. Repository profile -------------------------------------------
         profile: RepositoryProfile = RepositoryDetector().detect(
@@ -119,15 +151,23 @@ class ScanPipeline:
         context.business_requirements = [Path(p) for p in (business_requirements or [])]
 
         # 3. UST construction ---------------------------------------------
-        t_stage = time.time()
+        t_ust_stage = time.time()
+        ust_parse_count = len(discovered.source)
+        emit_progress("ust_parse", "running", 0, ust_parse_count)
         try:
+            def on_ust_progress(done: int, total: int):
+                emit_progress("ust_parse", "running", done, total)
+
             context.ust = USTBuilder().build_repository(
                 repo_root, discovered.source,
-                max_workers=cfg.ust_max_workers, cache_ttl=cfg.cache_ttl_seconds)
+                max_workers=cfg.ust_max_workers, cache_ttl=cfg.cache_ttl_seconds,
+                progress_callback=on_ust_progress)
         except Exception as exc:  # noqa: BLE001 — never let parsing kill a scan
             log.error("UST construction failed: %s", exc)
             context.record_error("ust", exc)
-        timings["ust_parse_ms"] = round((time.time() - t_stage) * 1000, 1)
+        ust_parse_s = time.time() - t_ust_stage
+        timings["ust_parse_ms"] = round(ust_parse_s * 1000, 1)
+        emit_progress("ust_parse", "done", ust_parse_count, ust_parse_count)
         cache_stats = getattr(context.ust, "cache_stats", {}) or {}
         timings["redis_read_ms"] = cache_stats.get("read_ms", 0.0)
         timings["redis_write_ms"] = cache_stats.get("write_ms", 0.0)
@@ -141,15 +181,8 @@ class ScanPipeline:
         )
 
         # 4. Deterministic engines -----------------------------------------
-        # Sequential by default (engine_max_workers=1). Set ENGINE_MAX_WORKERS>1
-        # to run engines concurrently via a bounded thread pool -- see
-        # GuardianConfig.engine_max_workers for why this is opt-in rather
-        # than on-by-default like UST parallelism: it trades deterministic
-        # evidence-ID numbering for speed. Findings/evidence CONTENT and the
-        # final report are identical either way; only internal E-numbers can
-        # differ between runs when parallel. Any pool failure falls back to
-        # sequential -- never fails the scan.
-        t_stage = time.time()
+        emit_progress("sast_rules", "running", ust_parse_count, ust_parse_count)
+        t_sast_stage = time.time()
         engine_stats: dict[str, Any] = {}
         engines = self._engines()
         results: list = []
@@ -158,8 +191,6 @@ class ScanPipeline:
                 from concurrent.futures import ThreadPoolExecutor
                 with ThreadPoolExecutor(max_workers=min(cfg.engine_max_workers, len(engines))) as pool:
                     futures = [pool.submit(run_engine, engine, context) for engine in engines]
-                    # .result() in submission order (not completion order) --
-                    # keeps engine_stats/report ordering identical to sequential.
                     results = [f.result() for f in futures]
             except Exception as exc:  # noqa: BLE001 — must never kill a scan
                 log.warning("parallel engine execution unavailable (%s); falling back to sequential", exc)
@@ -175,9 +206,9 @@ class ScanPipeline:
                 "duration_seconds": result.duration_seconds,
                 "error": result.error,
             }
-        timings["engines_total_ms"] = round((time.time() - t_stage) * 1000, 1)
-        # Named per spec: pulled from engine_stats (already measured above)
-        # rather than re-timed, since run_engine() already times each one.
+        sast_rules_s = time.time() - t_sast_stage
+        timings["engines_total_ms"] = round(sast_rules_s * 1000, 1)
+        emit_progress("sast_rules", "done", ust_parse_count, ust_parse_count)
         timings["security_scan_ms"] = round(
             engine_stats.get("security", {}).get("duration_seconds", 0) * 1000, 1)
         timings["business_scan_ms"] = round(
@@ -186,24 +217,23 @@ class ScanPipeline:
             engine_stats.get("quantum", {}).get("duration_seconds", 0) * 1000, 1)
 
         # 5. Legacy language plugins + analyzers ----------------------------
-        # Kept deliberately: their pattern sets still cover constructs the
-        # UST engines do not, and they are the fallback when no grammar is
-        # available. Overlapping detections are merged in step 6.
-        t_stage = time.time()
+        emit_progress("dependency_scan", "running", ust_parse_count, ust_parse_count)
+        t_dep_stage = time.time()
         legacy_findings, files_scanned = self._run_legacy_plugins(context, discovered)
         context.add_findings(legacy_findings)
         analyzer_findings, analyzer_stats, optional_scanner_status = self._run_legacy_analyzers(
             context, discovered, repo_root)
         context.add_findings(analyzer_findings)
-        # This bucket covers dependency + infrastructure legacy analysis
-        # together (they run in the same loop); dependency analysis
-        # dominates it in practice, hence the spec's field name.
-        timings["dependency_scan_ms"] = round((time.time() - t_stage) * 1000, 1)
+        dependency_scan_s = time.time() - t_dep_stage
+        timings["dependency_scan_ms"] = round(dependency_scan_s * 1000, 1)
+        emit_progress("dependency_scan", "done", ust_parse_count, ust_parse_count)
 
         # 6. Merge overlapping findings -------------------------------------
         context.findings = _merge_findings(context.findings)
 
-        # 7. Business-domain classification ----------------------------------
+        # 7. Business-domain classification & Risk scoring -------------------
+        emit_progress("risk_business", "running", ust_parse_count, ust_parse_count)
+        t_risk_stage = time.time()
         verdict: Optional[DomainVerdict] = None
         if cfg.enable_intent:
             try:
@@ -213,12 +243,40 @@ class ScanPipeline:
                 context.record_error("domain_classifier", exc)
 
         # 8. Risk scoring ------------------------------------------------------
+        total_s = time.time() - t0
+        risk_business_s = time.time() - t_risk_stage
+        emit_progress("risk_business", "done", ust_parse_count, ust_parse_count)
+
+        scan_breakdown = {
+            "github_fetch": round(github_fetch_s, 3),
+            "file_walk": round(file_walk_s, 3),
+            "ust_parse": round(ust_parse_s, 3),
+            "sast_rules": round(sast_rules_s, 3),
+            "dependency_scan": round(dependency_scan_s, 3),
+            "risk_business": round(risk_business_s, 3),
+            "total": round(total_s, 3),
+            "file_walk_count": file_walk_count,
+            "ust_parse_count": ust_parse_count,
+        }
+
+        breakdown_log = (
+            f"Scan breakdown: {{github_fetch: {github_fetch_s:.1f}s, "
+            f"file_walk: {file_walk_s:.1f}s for {file_walk_count} files, "
+            f"ust_parse: {ust_parse_s:.1f}s for {ust_parse_count} files, "
+            f"sast_rules: {sast_rules_s:.1f}s, "
+            f"dependency_scan: {dependency_scan_s:.1f}s, "
+            f"risk_business: {risk_business_s:.1f}s, "
+            f"total: {total_s:.1f}s}}"
+        )
+        scan_breakdown["summary"] = breakdown_log
+        log.info(breakdown_log)
+
         result = ScanResult(target=str(repo_root),
                             files_scanned=max(files_scanned, len(context.ust)),
-                            findings=context.findings)
+                            findings=context.findings,
+                            scan_breakdown=scan_breakdown)
         result.finish()
 
-        t_stage = time.time()
         business_output = context.output("business_intent") or {}
         effective_alignment = _effective_alignment(
             alignment_score, business_output, cfg.alignment_score_default)
@@ -238,7 +296,7 @@ class ScanPipeline:
         legacy_risk = compute_risk_report(
             result, alignment_score=effective_alignment,
             quantum_gate=cfg.enable_quantum_gate)
-        timings["risk_calculation_ms"] = round((time.time() - t_stage) * 1000, 1)
+        timings["risk_calculation_ms"] = round((time.time() - t_risk_stage) * 1000, 1)
 
         # AI / LangGraph are not separate stages of this deterministic
         # pipeline: LangGraph only runs via the separate /agentic-scan
@@ -280,10 +338,12 @@ class ScanPipeline:
             "sandbox": {"enabled": False},
             "optional_scanners": optional_scanner_status,
             "duration_seconds": round(time.time() - t0, 3),
+            "scan_breakdown": scan_breakdown,
         }
         timings["report_ms"] = round((time.time() - t_stage) * 1000, 1)
         timings["total_ms"] = round((time.time() - t0) * 1000, 1)
         report["timings"] = timings
+        emit_progress("complete", "complete", ust_parse_count, ust_parse_count)
         # Part 8 cache metrics, scoped to what's actually cached (per-file
         # UST). Redis internals are never exposed here, only aggregate counts.
         report["cache"] = {"ust": cache_stats}
