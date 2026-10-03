@@ -22,9 +22,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from guardian.intent.analysis.business_evidence import BusinessEvidenceAnalyzer, DeterministicRuleAnalysis
 from guardian.intent.parser.rule_parser import (
     ACTION_VERB_PATTERNS, CONTROL_PATTERNS, ParsedRule,
 )
+from guardian.intent.semantic.evidence_fusion import EvidenceFusionEngine
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +42,9 @@ class BehaviorProfile:
     conditions: list[str] = field(default_factory=list)
     controls: list[str] = field(default_factory=list)
     sequence: list[str] = field(default_factory=list)  # execution order of calls
+    code_snippet: str = ""
+    security_score: float = 0.0
+    business_score: float = 0.0
 
 
 def _stem(word: str) -> str:
@@ -58,6 +63,83 @@ def _stem_overlap(a: str, b: str) -> bool:
     return bool(_stems(a) & _stems(b))
 
 
+def _calculate_security_score(fn_name: str, fn_snippet: str, actions: list[str], controls: list[str]) -> float:
+    """Calculates general security relevance score for a function to prioritize AI context selection.
+    
+    This is NOT a vulnerability detector — it strictly ranks function relevance for security reasoning.
+    """
+    score = 0.0
+    s_lower = (fn_name + " " + fn_snippet).lower()
+
+    # 1. API / Route endpoint decorators or HTTP route bindings (+3.0)
+    if any(k in s_lower for k in ["@app.route", "@router.", "@api.", "@get", "@post", "@put", "@delete", "@patch", "getmapping", "postmapping", "requestmapping", "route("]):
+        score += 3.0
+
+    # 2. Authentication / Authorization controls or decorators (+2.5)
+    if any(k in s_lower for k in ["login_required", "authenticated", "authenticate", "auth", "jwt", "permission", "role", "authorize", "is_admin", "check_permission", "bearer", "session"]):
+        score += 2.5
+
+    # 3. Resource Identifier parameters (+2.0)
+    if any(k in s_lower for k in ["_id", "id:", "uuid", "pk", "account_id", "user_id", "order_id", "file_id", "item_id", "token"]):
+        score += 2.0
+
+    # 4. Database / ORM / Data store lookups (+2.0)
+    if any(k in s_lower for k in [".query.", ".filter", ".find", ".get(", ".execute(", "db.session", "select ", "delete_from", "update("]):
+        score += 2.0
+
+    # 5. Security-sensitive / Privileged function names (+1.5)
+    if any(k in fn_name.lower() for k in ["user", "profile", "account", "order", "payment", "admin", "auth", "login", "token", "secret", "password", "config", "file", "download", "upload", "exec", "cmd", "setting"]):
+        score += 1.5
+
+    # 6. Externally supplied input or Request / Session references (+1.5)
+    if any(k in s_lower for k in ["request.args", "request.form", "request.json", "request.get_json", "current_user", "session[", "params", "request.body"]):
+        score += 1.5
+
+    # 7. Dangerous / Sensitive system operations (+1.5)
+    if any(k in s_lower for k in ["os.system", "subprocess", "eval", "exec(", "pickle", "requests.get", "send_file", "open("]):
+        score += 1.5
+
+    return score
+
+
+def _calculate_business_score(fn_name: str, fn_snippet: str, actions: list[str], controls: list[str]) -> float:
+    """Calculates general business intent relevance score for a function to prioritize AI context selection.
+    
+    This is NOT a violation detector — it strictly ranks function relevance for business intent reasoning.
+    """
+    score = 0.0
+    s_lower = (fn_name + " " + fn_snippet).lower()
+
+    # 1. Business action / entity verbs (+3.0)
+    if any(k in s_lower for k in ["cancel", "order", "pay", "refund", "ship", "approve", "checkout", "billing", "invoice", "transaction", "transfer"]):
+        score += 3.0
+
+    # 2. State transition / Status modifications (+2.5)
+    if any(k in s_lower for k in ["status", "state", "stage", "transition", "shipped", "approved", "cancelled", "completed", "pending"]):
+        score += 2.5
+
+    # 3. Validation controls & business rules (+2.0)
+    if any(k in s_lower for k in ["check_", "validate", "verify", "can_", "is_valid", "allow_", "require_", "assert"]):
+        score += 2.0
+
+    # 4. Database / ORM / State mutations (+2.0)
+    if any(k in s_lower for k in [".save()", ".commit()", "db.session", ".update(", ".add(", "delete"]):
+        score += 2.0
+
+    # 5. API / Route endpoint bindings (+1.5)
+    if any(k in s_lower for k in ["@app.route", "@router.", "@api.", "@get", "@post", "@put", "@delete", "@patch", "route("]):
+        score += 1.5
+
+    # 6. User / Account / Role references (+1.5)
+    if any(k in s_lower for k in ["user", "account", "customer", "role", "admin", "client"]):
+        score += 1.5
+
+    return score
+
+
+_AST_WORKSPACE_CACHE: dict[str, tuple[float, list[BehaviorProfile]]] = {}
+
+
 class RuleMatcher:
     """Production-grade multi-factor rule matcher.
 
@@ -67,8 +149,13 @@ class RuleMatcher:
     to check requirements against yet.
     """
 
-    def __init__(self):
+    def __init__(self, workspace_dir: Path | None = None, enable_semantic: bool = True, semantic_top_k: int = 3):
         self.code_profiles: list[BehaviorProfile] = []
+        self.workspace_dir = workspace_dir
+        self.evidence_analyzer = BusinessEvidenceAnalyzer(workspace_dir=workspace_dir)
+        self.fusion_engine = EvidenceFusionEngine(workspace_dir=workspace_dir)
+        self.enable_semantic = enable_semantic
+        self.semantic_top_k = semantic_top_k
 
     @staticmethod
     def _profiles_from_findings(findings: list[dict[str, Any]] | None) -> list[BehaviorProfile]:
@@ -94,11 +181,6 @@ class RuleMatcher:
                 ("category", "rule", "rule_id", "snippet", "recommendation", "message")
             ).lower()
 
-            # Use the SAME vocabulary the rule parser uses to pull action/control
-            # words out of a requirement sentence, so a finding whose own
-            # category/recommendation mentions e.g. "authentication" or
-            # "encryption" lines up with a rule that demands it — instead of
-            # two independently-invented keyword lists silently drifting apart.
             actions = (
                 re.findall(r"[a-z0-9]+", category.lower())
                 + re.findall(r"[a-z0-9]+", rule_id.lower())
@@ -106,22 +188,48 @@ class RuleMatcher:
             )
             controls = [m.lower() for m in CONTROL_PATTERNS.findall(text_blob)]
 
+            profiles.append(
+                BehaviorProfile(
+                    function_name=function_name,
+                    file=file_path,
+                    line=line,
+                    actions=actions,
+                    conditions=[],
+                    controls=controls,
+                    sequence=[],
+                    code_snippet=str(finding.get("snippet") or "")[:500],
+                    security_score=2.0,  # Pre-seeded scanner finding -> elevated baseline relevance
+                )
+            )
+        return profiles
+
     @staticmethod
     def _profiles_from_workspace(workspace_dir: Path | None = None) -> list[BehaviorProfile]:
         """Extract BehaviorProfiles directly from source code files in the workspace
-        so code logic that didn't generate a scanner finding is still evaluated against rules."""
+        so code logic that didn't generate a scanner finding is still evaluated against rules.
+        Uses in-memory mtime caching to eliminate duplicate filesystem parsing."""
         import os
         if not workspace_dir:
             workspace_dir = Path.cwd()
+        ws_key = str(workspace_dir.resolve())
+        try:
+            mtime = workspace_dir.stat().st_mtime
+        except Exception:
+            mtime = 0.0
+
+        if ws_key in _AST_WORKSPACE_CACHE:
+            cached_mtime, cached_profiles = _AST_WORKSPACE_CACHE[ws_key]
+            if cached_mtime == mtime:
+                return cached_profiles
+
         profiles: list[BehaviorProfile] = []
         ignore_dirs = {".venv", "node_modules", ".git", "__pycache__", "build", "dist", ".acg_workspaces", ".pytest_cache", "_to_delete"}
         exts = {".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".go", ".php", ".rb", ".c", ".cpp"}
         file_count = 0
         max_files = 150
-        
+
         try:
-            for root, dirs, files in os.walk(str(workspace_dir)):
-                # Prune ignored directories in-place so os.walk does not traverse them
+            for root, dirs, files in os.walk(ws_key):
                 dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith(".")]
                 for file in files:
                     if file_count >= max_files:
@@ -133,7 +241,7 @@ class RuleMatcher:
                             content = p.read_text(encoding="utf-8", errors="ignore")
                         except Exception:
                             continue
-                        
+
                         try:
                             rel_path = str(p.relative_to(workspace_dir))
                         except ValueError:
@@ -148,11 +256,26 @@ class RuleMatcher:
                             fn_name = match.group(2)
                             char_pos = match.start()
                             line_no = content[:char_pos].count("\n") + 1
-                            fn_snippet = "\n".join(lines[line_no-1 : line_no+30]).lower()
-                            
-                            actions = [m.lower() for m in ACTION_VERB_PATTERNS.findall(fn_snippet + " " + fn_name)]
-                            controls = [m.lower() for m in CONTROL_PATTERNS.findall(fn_snippet)]
-                            
+
+                            # Bounded 5-15 line snippet extraction including decorators
+                            start_line = line_no
+                            min_start = max(1, line_no - 4)
+                            for l_idx in range(line_no - 2, min_start - 2, -1):
+                                if l_idx >= 0 and lines[l_idx].strip().startswith(("@", "//", "/*", "#")):
+                                    start_line = l_idx + 1
+                                else:
+                                    break
+
+                            end_line = min(len(lines), line_no + 12)
+                            bounded_lines = lines[start_line - 1 : end_line]
+                            raw_snippet = "\n".join(bounded_lines)
+                            fn_snippet_lower = raw_snippet.lower()
+
+                            actions = [m.lower() for m in ACTION_VERB_PATTERNS.findall(fn_snippet_lower + " " + fn_name)]
+                            controls = [m.lower() for m in CONTROL_PATTERNS.findall(fn_snippet_lower)]
+                            sec_score = _calculate_security_score(fn_name, fn_snippet_lower, actions, controls)
+                            bus_score = _calculate_business_score(fn_name, fn_snippet_lower, actions, controls)
+
                             profiles.append(BehaviorProfile(
                                 function_name=fn_name,
                                 file=rel_path,
@@ -160,12 +283,17 @@ class RuleMatcher:
                                 actions=actions or [fn_name.lower()],
                                 conditions=[],
                                 controls=controls,
-                                sequence=[]
+                                sequence=[],
+                                code_snippet=raw_snippet[:800],
+                                security_score=sec_score,
+                                business_score=bus_score,
                             ))
                 if file_count >= max_files:
                     break
         except Exception as exc:
             log.warning("Workspace profile extraction skipped: %s", exc)
+
+        _AST_WORKSPACE_CACHE[ws_key] = (mtime, profiles)
         return profiles
 
     def _token_jaccard(self, text1: str, text2: str) -> float:
@@ -187,6 +315,13 @@ class RuleMatcher:
         best_why = "Requirement cannot be verified against scan scope"
         best_how = "Annotate implementing function or upload code module"
 
+        # 0. Run deep AST control flow, data flow, & specialized business evidence analyzer
+        analysis: DeterministicRuleAnalysis = self.evidence_analyzer.analyze_rule(
+            rule_id=rule.rule_id,
+            requirement_text=rule.requirement_text,
+            rule_obj=rule,
+        )
+
         rule_action = rule.action.lower()
         rule_condition = rule.condition.lower()
         rule_control = rule.control.lower()
@@ -201,10 +336,6 @@ class RuleMatcher:
                 profiles.append(wp)
         profiles = profiles or self.code_profiles
 
-        # Debug observability (Phase 24): counts only, never raw prompts or
-        # secrets — how many findings were even looked at for this rule,
-        # vs. how many showed genuine relevance and were allowed to
-        # compete for best_profile at all.
         profiles_considered = len(profiles)
         profiles_passed_gate = 0
 
@@ -215,69 +346,41 @@ class RuleMatcher:
             all_controls = " ".join(profile.controls).lower()
             profile_text_blob = f"{profile.function_name} {all_actions} {profile.file}".lower()
 
-            # 1. Action Match (40%) — stem-based so "authenticate" in the rule
-            # matches "authentication"/"authenticated" found in the finding.
             action_match = 1.0 if _stem_overlap(rule_action, all_actions) else 0.0
-
-            # 2. Condition Match (30%)
             condition_match = 1.0 if (rule_condition != "none" and rule_condition in all_conditions) else 0.5 if rule_condition == "none" else 0.0
-
-            # 3. Control Match (30%)
             control_match = 1.0 if _stem_overlap(rule_control, all_controls) else 0.0
 
-            # Evidence-terms overlap: an extra, rule-specific relevance
-            # signal straight from the source document itself (structured
-            # rule documents carry an explicit "Evidence terms" list per
-            # rule) — independent of the parser's coarser action/control
-            # vocabulary, so a finding worded differently from
-            # ACTION_VERB_PATTERNS/CONTROL_PATTERNS can still register.
             evidence_term_hit = bool(rule.evidence_terms) and any(
                 _stem_overlap(term, profile_text_blob) for term in rule.evidence_terms
             )
 
-            # Relevance gate: a profile is only a *candidate* match when it
-            # shows genuine positive signal for THIS rule — an action
-            # match, a control match, or an evidence-term hit. Without
-            # this gate, a profile with zero real relevance could still
-            # "win" best_profile by comparative accident purely off the
-            # condition_match=0.5 baseline every profile gets for free
-            # when the rule has no numeric condition (rule_condition ==
-            # "none") — which is exactly what let an unrelated dependency
-            # finding get displayed as "evidence" for an unrelated rule.
             if not (action_match > 0 or control_match > 0 or evidence_term_hit):
                 continue
             profiles_passed_gate += 1
 
-            # Combined AST Score (60% weight)
             ast_score = (0.40 * action_match) + (0.30 * condition_match) + (0.30 * control_match)
 
-            # Control Flow Validation: Check if control precedes action in execution sequence
             sequence_valid = True
             if profile.controls and profile.actions and profile.sequence:
                 ctrl_idx = min((profile.sequence.index(s) for s in profile.sequence if any(c in s for c in profile.controls)), default=-1)
                 act_idx = min((profile.sequence.index(s) for s in profile.sequence if any(a in s for a in profile.actions)), default=-1)
                 if ctrl_idx != -1 and act_idx != -1 and ctrl_idx > act_idx:
                     sequence_valid = False
-                    ast_score *= 0.5  # Penalty for control after action
+                    ast_score *= 0.5
 
-            # Semantic Score (30% weight)
             semantic_score = self._token_jaccard(req_text, profile_text_blob)
-
-            # Keyword Score (10% weight)
             keyword_score = 1.0 if (
                 _stem_overlap(rule_action, fn_name)
                 or _stem_overlap(rule_control, all_controls)
                 or evidence_term_hit
             ) else 0.0
 
-            # Final Score Calculation
             final_score = (0.60 * ast_score) + (0.30 * semantic_score) + (0.10 * keyword_score)
 
             if final_score > best_score:
                 best_score = final_score
                 best_profile = profile
 
-                # Determine status verdict
                 if action_match > 0 or evidence_term_hit:
                     if control_match == 0:
                         best_verdict = "VIOLATION"
@@ -305,34 +408,57 @@ class RuleMatcher:
                     best_why = "Partial policy alignment"
                     best_how = f"Verify binding between {rule.control} and action handler"
 
-        # PART 5 Guardrail: False Positive Elimination
+        # Apply deterministic deep evidence analysis result if higher confidence / definitive verdict reached
+        if analysis.deterministic_verdict != "INSUFFICIENT_EVIDENCE" and analysis.confidence >= 0.70:
+            if analysis.confidence >= best_score or best_verdict == "INSUFFICIENT_EVIDENCE":
+                best_verdict = analysis.deterministic_verdict
+                best_score = max(best_score, analysis.confidence)
+                best_what = analysis.what
+                best_why = analysis.why
+                best_how = analysis.how
+        elif analysis.score_boost > 0:
+            best_score = min(1.0, best_score + analysis.score_boost)
+
         rejection_reason = None
-        if best_profile is None or best_score < 0.12:
+        if (best_profile is None and not analysis.matched_file) or best_score < 0.12:
             rejection_reason = (
                 "no candidate profile showed genuine action/control/evidence-term relevance"
-                if best_profile is None
+                if best_profile is None and not analysis.matched_file
                 else f"best candidate score {round(best_score, 3)} fell below the 0.12 confidence threshold"
             )
             best_verdict = "INSUFFICIENT_EVIDENCE"
             best_what = "No relevant action or control logic found in code AST"
             best_why = "Codebase contains no matching domain execution paths"
             best_how = "Upload related source code or annotate function implementations"
-            # Never display a low-relevance "best of a bad lot" profile as
-            # if it were supporting evidence once the guardrail has
-            # downgraded the verdict — this is what previously let an
-            # unrelated finding (e.g. a dependency-version finding) show
-            # up as "evidence" for a rule it had nothing to do with.
             best_profile = None
 
+        final_matched_file = (best_profile.file if best_profile else "") or analysis.matched_file
+        final_matched_func = (best_profile.function_name if best_profile else "") or analysis.matched_function
+        final_matched_line = (best_profile.line if best_profile else 0) or analysis.matched_line
+        final_matched_snippet = (best_profile.code_snippet if best_profile else "") or analysis.matched_snippet
+
         evidence_str = (
-            f"file: {best_profile.file} · function: {best_profile.function_name}"
-            if best_profile else ""
+            f"file: {final_matched_file} · function: {final_matched_func}"
+            if final_matched_file and final_matched_func else (
+                f"file: {final_matched_file}" if final_matched_file else ""
+            )
         )
 
-        return {
+        missing_controls = analysis.missing_controls if analysis.missing_controls else (
+            [rule.control] if best_verdict in ("VIOLATION", "PARTIAL", "INSUFFICIENT_EVIDENCE") else []
+        )
+
+        det_result = {
             "rule": rule.requirement_text,
+            "original_requirement": rule.requirement_text,
             "rule_id": rule.rule_id,
             "title": rule.title,
+            "area": rule.area,
+            "required_control": rule.required_control or rule.control,
+            "expected_implementation_behavior": rule.expected_implementation_behavior,
+            "violation_conditions": rule.violation_conditions,
+            "compliant_conditions": rule.compliant_conditions,
+            "suggested_validation": rule.suggested_validation,
             "status": best_verdict,
             "what": best_what,
             "why": best_why,
@@ -342,6 +468,17 @@ class RuleMatcher:
             "score": round(best_score, 3),
             "source_file": rule.source_file,
             "line_number": rule.line_number,
+            "matched_action": rule.action,
+            "matched_condition": rule.condition,
+            "matched_control": rule.control,
+            "missing_control": ", ".join(missing_controls) if missing_controls else "",
+            "missing_controls": missing_controls,
+            "negative_evidence": analysis.negative_evidence,
+            "evidence_items": [ev.to_dict() for ev in analysis.all_evidence()],
+            "matched_file": final_matched_file,
+            "matched_function": final_matched_func,
+            "matched_line": final_matched_line,
+            "matched_snippet": final_matched_snippet,
             "debug": {
                 "profiles_considered": profiles_considered,
                 "profiles_passed_relevance_gate": profiles_passed_gate,
@@ -350,6 +487,12 @@ class RuleMatcher:
             },
         }
 
+        if self.enable_semantic:
+            fused_res = self.fusion_engine.fuse_rule_result(det_result, top_k=self.semantic_top_k)
+            return fused_res.to_dict()
+        return det_result
+
     def evaluate_all(self, rules: list[ParsedRule], findings: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         """Evaluate a list of ParsedRules against codebase behavior."""
         return [self.evaluate_rule(r, findings) for r in rules]
+

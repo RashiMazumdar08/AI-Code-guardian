@@ -28,7 +28,8 @@ ACG_EMBED_DIM together if you swap models.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+import threading
+from typing import Any, Optional
 
 import numpy as np
 
@@ -36,6 +37,10 @@ log = logging.getLogger(__name__)
 
 DEFAULT_EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_EMBED_DIM = 384
+
+
+_MODEL_CACHE: dict[str, Any] = {}
+_MODEL_LOCK = threading.Lock()
 
 
 class EmbeddingError(Exception):
@@ -47,7 +52,8 @@ class LocalEmbedder:
 
     The model is loaded lazily on first use so that importing this module
     — which the whole AI package does — never pays a multi-second model
-    load or fails in environments where the dependency is absent.
+    load or fails in environments where the dependency is absent. Uses a
+    process-level singleton cache so SentenceTransformer is loaded only once.
     """
 
     def __init__(self, model_name: str = DEFAULT_EMBED_MODEL,
@@ -58,72 +64,40 @@ class LocalEmbedder:
         self.dim = dim
         self.batch_size = batch_size
         self.load_timeout = load_timeout
-        self._model = None
         self._load_failed = False
 
     # ------------------------------------------------------------------
     @property
     def model(self):
-        if self._model is None and not self._load_failed:
+        cache_key = f"{self.model_name}:{self.device}"
+        if cache_key in _MODEL_CACHE:
+            return _MODEL_CACHE[cache_key]
+
+        with _MODEL_LOCK:
+            if cache_key in _MODEL_CACHE:
+                return _MODEL_CACHE[cache_key]
+
+            if self._load_failed:
+                return None
+
             try:
                 from sentence_transformers import SentenceTransformer
-            except ImportError:
+                log.info("loading local embedding model %s on %s", self.model_name, self.device)
+                model_obj = SentenceTransformer(self.model_name, device=self.device)
+            except Exception as exc:  # noqa: BLE001
                 self._load_failed = True
-                log.error("sentence-transformers is not installed. "
-                          "Install it: pip install sentence-transformers")
-                return self._model
-
-            # Load on a background DAEMON thread rather than via
-            # ThreadPoolExecutor: a pool's context manager (and even a bare
-            # shutdown()) blocks on exit until the worker finishes, which
-            # would defeat the timeout if the download is genuinely hung —
-            # we'd still wait for it, just with extra steps. A daemon
-            # thread lets us give up after `load_timeout` and move on; if
-            # the download eventually finishes in the background it is
-            # simply discarded (self._load_failed is already latched).
-            import threading
-            box: dict = {}
-
-            def _do_load():
-                try:
-                    box["model"] = SentenceTransformer(self.model_name, device=self.device)
-                except Exception as exc:  # noqa: BLE001
-                    box["error"] = exc
-
-            log.info("loading local embedding model %s on %s (timeout=%ss)",
-                     self.model_name, self.device, self.load_timeout)
-            worker = threading.Thread(target=_do_load, daemon=True)
-            worker.start()
-            worker.join(timeout=self.load_timeout)
-
-            if worker.is_alive():
-                self._load_failed = True
-                log.error(
-                    "Timed out after %ss loading '%s' — this is a one-time "
-                    "download from huggingface.co on first use. If your "
-                    "network can't reach Hugging Face, retrieval will be "
-                    "skipped for this session; the chatbot will still "
-                    "answer general questions without repository context. "
-                    "Increase ACG_MODEL_LOAD_TIMEOUT if you're on a slow "
-                    "connection and it just needs more time.",
-                    self.load_timeout, self.model_name)
+                log.error("failed to load embedding model %s: %s", self.model_name, exc)
                 return None
 
-            if "error" in box:
-                self._load_failed = True
-                log.error("failed to load embedding model %s: %s", self.model_name, box["error"])
-                return None
-
-            self._model = box.get("model")
-            if self._model is not None:
-                actual = self._model.get_sentence_embedding_dimension()
-                if actual != self.dim:
+            if model_obj is not None:
+                actual = getattr(model_obj, "get_embedding_dimension", getattr(model_obj, "get_sentence_embedding_dimension", None))()
+                if actual and actual != self.dim:
                     log.warning(
-                        "embed_dim mismatch: configured %d, model produces %d. "
-                        "Using %d — rebuild the FAISS index if it was built at "
-                        "the old dimension.", self.dim, actual, actual)
+                        "embed_dim mismatch: configured %d, model produces %d. Using %d.",
+                        self.dim, actual, actual)
                     self.dim = actual
-        return self._model
+                _MODEL_CACHE[cache_key] = model_obj
+            return model_obj
 
     @property
     def is_available(self) -> bool:

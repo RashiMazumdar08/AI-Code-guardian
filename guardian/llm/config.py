@@ -49,14 +49,31 @@ def load_dotenv(path: str | Path = ".env", override: bool = False) -> int:
 DEFAULT_BASE_URL = "https://integrate.api.nvidia.com/v1"
 DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 
+DEFAULT_GROK_BASE_URL = "https://api.x.ai/v1"
+DEFAULT_GROK_MODEL = "grok-2-latest"
+
+DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+
 
 @dataclass
 class LLMConfig:
     """Provider configuration. Construct via `LLMConfig.from_env()`."""
 
     api_key: str = ""
-    base_url: str = DEFAULT_BASE_URL
-    model: str = DEFAULT_MODEL
+    base_url: str = DEFAULT_GEMINI_BASE_URL
+    model: str = DEFAULT_GEMINI_MODEL
+    provider: str = "gemini"
+
+    # Global and per-agent AI toggles
+    enabled: bool = True
+    security_agent_enabled: bool = False
+    enabled_agents: set[str] = field(
+        default_factory=lambda: {
+            "security", "business", "architecture", "threat_simulation",
+            "validation", "patch", "chat", "dependency"
+        }
+    )
 
     # generation
     temperature: float = 1.0
@@ -69,11 +86,6 @@ class LLMConfig:
 
     # transport
     timeout: int = 120
-    # BUG FIX: this was 10, but the module docstring documents (and the
-    # UX requires) a default of 3. With a 120s per-attempt timeout and
-    # unbounded exponential backoff, 10 retries could turn one slow/
-    # blocked network into a 20+ minute silent hang on a single chat
-    # request before any error ever reached the user.
     max_retries: int = 3
     retry_backoff: float = 2.0
     retry_backoff_max: float = 15.0  # cap on any single retry delay, in seconds
@@ -83,11 +95,17 @@ class LLMConfig:
     log_prompts: bool = False       # opt-in: prompts may contain source code
     log_token_usage: bool = True
 
+    # Rule Parser LLM Configuration (Local Qwen2.5-3B-Instruct)
+    rule_parser_enabled: bool = True
+    rule_parser_model: str = "Qwen2.5-3B-Instruct"
+    rule_parser_timeout: int = 30
+    rule_parser_local_path: str = ""
+
     extras: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------------
     @classmethod
-    def from_env(cls, dotenv_path: str | Path = ".env") -> "LLMConfig":
+    def from_env(cls, dotenv_path: str | Path = ".env", agent: Optional[str] = None) -> "LLMConfig":
         load_dotenv(dotenv_path)
 
         def _f(name: str, default: float) -> float:
@@ -102,19 +120,84 @@ class LLMConfig:
             except (TypeError, ValueError):
                 return default
 
+        agent_provider = os.getenv(f"{agent.upper()}_LLM_PROVIDER") or os.getenv(f"{agent.upper()}_PROVIDER") if agent else None
+        provider_env = (agent_provider or os.getenv("LLM_PROVIDER") or "").lower().strip()
+
+        gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY", "")
+        grok_key = os.getenv("XAI_API_KEY") or os.getenv("GROK_API_KEY", "")
+        nvidia_key = os.getenv("NVIDIA_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY", "")
+
+        if provider_env in ("gemini", "google") or (not provider_env and gemini_key):
+            provider = "gemini"
+            api_key = gemini_key or nvidia_key
+            base_url = os.getenv("GEMINI_BASE_URL") or os.getenv("NVIDIA_BASE_URL", DEFAULT_GEMINI_BASE_URL)
+            model = os.getenv("GEMINI_MODEL") or os.getenv("NVIDIA_MODEL", DEFAULT_GEMINI_MODEL)
+        elif provider_env in ("grok", "xai") or (not provider_env and grok_key):
+            provider = "grok"
+            api_key = grok_key
+            base_url = os.getenv("XAI_BASE_URL") or os.getenv("GROK_BASE_URL", DEFAULT_GROK_BASE_URL)
+            model = os.getenv("XAI_MODEL") or os.getenv("GROK_MODEL", DEFAULT_GROK_MODEL)
+        elif provider_env in ("nemotron", "nvidia"):
+            provider = "nemotron"
+            api_key = nvidia_key
+            base_url = os.getenv("NVIDIA_BASE_URL", DEFAULT_BASE_URL)
+            model = os.getenv("NVIDIA_MODEL", DEFAULT_MODEL)
+        else:
+            provider = "gemini"
+            api_key = gemini_key or nvidia_key
+            base_url = os.getenv("GEMINI_BASE_URL") or os.getenv("NVIDIA_BASE_URL", DEFAULT_GEMINI_BASE_URL)
+            model = os.getenv("GEMINI_MODEL") or os.getenv("NVIDIA_MODEL", DEFAULT_GEMINI_MODEL)
+
+        base_url = base_url.rstrip("/")
+
+        # Global LLM enablement
+        llm_enabled_str = os.getenv("LLM_ENABLED", "").lower()
+        if llm_enabled_str in ("false", "0", "no", "off"):
+            enabled = False
+        else:
+            enabled = bool(api_key)
+
+        # Per-agent enablement parsing
+        agents_env = os.getenv("LLM_AGENTS_ENABLED", "").lower().strip()
+        if agents_env:
+            enabled_agents = {a.strip() for a in agents_env.split(",") if a.strip()}
+        else:
+            enabled_agents = {
+                "security", "business", "architecture", "threat_simulation",
+                "validation", "patch", "chat", "dependency"
+            }
+
+        rule_parser_enabled_str = os.getenv("LLM_RULE_PARSER_ENABLED", "true").lower().strip()
+        rule_parser_enabled = rule_parser_enabled_str not in ("false", "0", "no", "off", "disabled")
+
+        extras = {"provider": provider}
+
+        sec_enabled_str = os.getenv("SECURITY_AGENT_ENABLED", "false").lower().strip()
+        security_agent_enabled = sec_enabled_str in ("true", "1", "yes", "on")
+
         return cls(
-            api_key=os.getenv("NVIDIA_API_KEY", ""),
-            base_url=os.getenv("NVIDIA_BASE_URL", DEFAULT_BASE_URL).rstrip("/"),
-            model=os.getenv("NVIDIA_MODEL", DEFAULT_MODEL),
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            provider=provider,
+            enabled=enabled,
+            security_agent_enabled=security_agent_enabled,
+            enabled_agents=enabled_agents,
             temperature=_f("LLM_TEMPERATURE", 1.0),
             max_tokens=_i("LLM_MAX_TOKENS", 16384),
             top_p=_f("LLM_TOP_P", 0.95),
             timeout=_i("LLM_TIMEOUT", 120),
-            max_retries=_i("LLM_MAX_RETRIES", 10),
+
+            max_retries=_i("LLM_MAX_RETRIES", 3),
             retry_backoff=_f("LLM_RETRY_BACKOFF", 2.0),
             log_prompts=os.getenv("LLM_LOG_PROMPTS", "false").lower() == "true",
             enable_thinking=os.getenv("LLM_ENABLE_THINKING", "true").lower() == "true",
             reasoning_budget=_i("LLM_REASONING_BUDGET", 16384),
+            rule_parser_enabled=rule_parser_enabled,
+            rule_parser_model=os.getenv("LLM_RULE_PARSER_MODEL", "Qwen2.5-3B-Instruct"),
+            rule_parser_timeout=_i("LLM_RULE_PARSER_TIMEOUT", 30),
+            rule_parser_local_path=os.getenv("LLM_RULE_PARSER_LOCAL_PATH", ""),
+            extras=extras,
         )
 
     # ------------------------------------------------------------------
@@ -122,13 +205,13 @@ class LLMConfig:
         """Raise ValueError with an actionable message if unusable."""
         if not self.api_key:
             raise ValueError(
-                "NVIDIA_API_KEY is not set. Export it or add it to .env:\n"
-                "    export NVIDIA_API_KEY='nvapi-...'\n"
-                "Get a key at https://build.nvidia.com/ (API Keys section)."
+                "No API key set. Export XAI_API_KEY (or NVIDIA_API_KEY) or add it to .env:\n"
+                "    export XAI_API_KEY='xai-...'\n"
+                "Get a key at https://x.ai/ (API section)."
             )
         if not self.base_url.startswith("https://"):
             raise ValueError(
-                f"NVIDIA_BASE_URL must be HTTPS (got {self.base_url!r}). "
+                f"LLM Base URL must be HTTPS (got {self.base_url!r}). "
                 "Source code is transmitted to this endpoint; plaintext HTTP "
                 "is not permitted."
             )
@@ -140,7 +223,39 @@ class LLMConfig:
 
     @property
     def is_configured(self) -> bool:
-        return bool(self.api_key)
+        return bool(self.api_key) and self.enabled
+
+    def is_agent_enabled(self, agent_name: str) -> bool:
+        return self.is_configured and (agent_name in self.enabled_agents)
+
+    def is_security_ai_enabled(self) -> bool:
+        sec_env = os.getenv("SECURITY_AGENT_ENABLED", "false").lower().strip()
+        return sec_env in ("true", "1", "yes", "on") and self.is_agent_enabled("security")
+
+    def get_agent_config(self, agent_name: str) -> "LLMConfig":
+        """Return a provider configuration for a specific agent if customized via env vars."""
+        agent_upper = agent_name.upper()
+        agent_provider = os.getenv(f"{agent_upper}_LLM_PROVIDER") or os.getenv(f"{agent_upper}_PROVIDER")
+        if not agent_provider:
+            return self
+
+        agent_key = (
+            os.getenv(f"{agent_upper}_API_KEY") or
+            os.getenv(f"{agent_upper}_GEMINI_API_KEY") or
+            os.getenv(f"{agent_upper}_NVIDIA_API_KEY") or
+            os.getenv(f"{agent_upper}_XAI_API_KEY") or
+            self.api_key
+        )
+        agent_base_url = os.getenv(f"{agent_upper}_BASE_URL") or self.base_url
+        agent_model = os.getenv(f"{agent_upper}_MODEL") or self.model
+
+        import copy
+        cfg = copy.copy(self)
+        cfg.provider = agent_provider.lower().strip()
+        cfg.api_key = agent_key
+        cfg.base_url = agent_base_url
+        cfg.model = agent_model
+        return cfg
 
     @property
     def masked_key(self) -> str:
@@ -149,6 +264,7 @@ class LLMConfig:
         return f"{self.api_key[:6]}...{self.api_key[-4:]}" if len(self.api_key) > 12 else "<set>"
 
     def __repr__(self) -> str:  # never leak the key into logs/tracebacks
-        return (f"LLMConfig(model={self.model!r}, base_url={self.base_url!r}, "
-                f"api_key={self.masked_key}, temperature={self.temperature}, "
+        return (f"LLMConfig(provider={self.provider!r}, model={self.model!r}, base_url={self.base_url!r}, "
+                f"api_key={self.masked_key}, enabled={self.enabled}, temperature={self.temperature}, "
                 f"max_tokens={self.max_tokens}, timeout={self.timeout})")
+

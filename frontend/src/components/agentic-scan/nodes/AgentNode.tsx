@@ -24,26 +24,36 @@ const NODE_ICONS: Record<string, React.ComponentType<any>> = {
 };
 
 const STATUS_STYLE: Record<AgentStatus, { border: string; glow: string; badge: string; dot: string }> = {
-  WAITING: { border: "border-white/12", glow: "", badge: "bg-white/8 text-[#8e8e9a]", dot: "bg-[#8e8e9a]" },
+  WAITING: {
+    border: "border-white animate-node-blink-white",
+    glow: "shadow-[0_0_14px_rgba(255,255,255,0.85)]",
+    badge: "bg-[#EAF3FF] text-[#0064D8] border border-[#BFDBFE] font-bold",
+    dot: "bg-slate-400",
+  },
   RUNNING: {
-    border: "border-[#ff5400]/70 animate-pulse",
-    glow: "shadow-[0_0_18px_rgba(255,84,0,0.35)]",
-    badge: "bg-[#ff5400]/15 text-[#ff5400]",
-    dot: "bg-[#ff5400] animate-pulse",
+    border: "border-white animate-node-blink-white",
+    glow: "shadow-[0_0_22px_rgba(255,255,255,1)]",
+    badge: "bg-[#0064D8] text-white font-bold border border-white",
+    dot: "bg-[#0070F2] animate-ping",
   },
   COMPLETED: {
-    border: "border-emerald-500/50",
-    glow: "shadow-[0_0_12px_rgba(16,185,129,0.2)]",
-    badge: "bg-emerald-500/15 text-emerald-400",
-    dot: "bg-emerald-400",
+    border: "border-emerald-400 animate-node-blink-white",
+    glow: "shadow-[0_0_16px_rgba(255,255,255,0.9)]",
+    badge: "bg-emerald-600 text-white font-bold",
+    dot: "bg-emerald-500",
   },
   FAILED: {
-    border: "border-red-500/60",
-    glow: "shadow-[0_0_14px_rgba(239,68,68,0.3)]",
-    badge: "bg-red-500/15 text-red-400",
-    dot: "bg-red-400",
+    border: "border-rose-400 animate-node-blink-white",
+    glow: "shadow-[0_0_16px_rgba(255,255,255,0.9)]",
+    badge: "bg-rose-600 text-white font-bold",
+    dot: "bg-rose-500",
   },
-  SKIPPED: { border: "border-dashed border-slate-500/50", glow: "opacity-50", badge: "bg-white/5 text-[#5c5c68]", dot: "bg-[#5c5c68]" },
+  SKIPPED: {
+    border: "border-dashed border-white/80 animate-node-blink-white",
+    glow: "opacity-80 shadow-[0_0_10px_rgba(255,255,255,0.7)]",
+    badge: "bg-slate-200 text-slate-700 font-bold",
+    dot: "bg-slate-400",
+  },
 };
 
 const STATUS_ICON: Record<AgentStatus, React.ComponentType<any>> = {
@@ -71,14 +81,14 @@ export const AgentNode = ({ data }: { data: AgentNodeData }) => {
   return (
     <div
       onClick={() => data.onSelect?.(data.agentKey)}
-      className={`cursor-pointer select-none rounded-xl bg-[#12131a] border ${style.border} ${style.glow} px-3.5 py-3 min-w-[168px] transition-all duration-300 hover:scale-[1.03]`}
+      className={`cursor-pointer select-none rounded-xl bg-white border-2 ${style.border} ${style.glow} px-3.5 py-3 min-w-[168px] transition-all duration-300 hover:scale-[1.05] shadow-lg`}
     >
-      <Handle type="target" position={Position.Left} className="!bg-white/30 !w-1.5 !h-1.5 !border-0" />
+      <Handle type="target" position={Position.Left} className="!bg-white !w-2 !h-2 !border !border-[#0070F2] shadow-[0_0_8px_rgba(255,255,255,1)]" />
 
       <div className="flex items-center gap-2">
-        <span className={`w-1.5 h-1.5 rounded-full ${style.dot} shrink-0`} />
-        <Icon className="w-3.5 h-3.5 text-[#f4f4f8] shrink-0" />
-        <span className="text-[11px] font-mono font-semibold text-[#f4f4f8] truncate">{data.label}</span>
+        <span className={`w-2 h-2 rounded-full ${style.dot} shrink-0`} />
+        <Icon className="w-4 h-4 text-[#0064D8] shrink-0" />
+        <span className="text-[11px] font-mono font-bold text-[#062B5C] truncate">{data.label}</span>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -87,11 +97,11 @@ export const AgentNode = ({ data }: { data: AgentNodeData }) => {
           {data.status}
         </span>
         {typeof data.duration === "number" && data.status === "COMPLETED" && (
-          <span className="text-[8.5px] font-mono text-[#8e8e9a]">{(data.duration * 1000).toFixed(0)}ms</span>
+          <span className="text-[8.5px] font-mono text-[#4F6480] font-semibold">{(data.duration * 1000).toFixed(0)}ms</span>
         )}
       </div>
 
-      <Handle type="source" position={Position.Right} className="!bg-white/30 !w-1.5 !h-1.5 !border-0" />
+      <Handle type="source" position={Position.Right} className="!bg-white !w-2 !h-2 !border !border-[#0070F2] shadow-[0_0_8px_rgba(255,255,255,1)]" />
     </div>
   );
 };

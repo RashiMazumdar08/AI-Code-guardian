@@ -251,7 +251,7 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
       <div className="shrink-0">
         <RepoInput onScan={handleScan} isScanning={isScanning} />
       </div>
-      <div className="flex-1 flex overflow-hidden rounded-xl bg-[#0c0d11] border border-white/8">
+      <div className="flex-1 flex overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-sm">
         {/* File Tree Sidebar */}
         <div className="w-60 shrink-0 overflow-hidden">
           {isScanning ? (
@@ -270,11 +270,15 @@ export default function IDEWorkspace({ onScanComplete }: IDEWorkspaceProps) {
         </div>
 
         {/* Code Viewer (Center) */}
-        <div className="flex-1 overflow-hidden border-l border-white/8 flex flex-col">
-          <div className="px-4 py-2.5 border-b border-white/8 bg-[#12131a] flex items-center gap-2 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-[#ff5400]/50" />
-            <span className="text-xs font-mono text-[#8e8e9a] truncate">
-              {selectedFilePath || "NO FILE SELECTED"}
+        <div className="flex-1 overflow-hidden border-l border-slate-200 flex flex-col">
+          <div className="px-4 py-2.5 border-b border-slate-200 bg-[#F8FAFC] flex items-center gap-2 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="text-[13px] font-sans font-medium leading-[1.4] text-[#64748B] truncate">
+              {selectedFilePath ? (
+                <span className="font-mono text-[13px] font-medium leading-[1.4] text-slate-700">{selectedFilePath}</span>
+              ) : (
+                "NO FILE SELECTED"
+              )}
             </span>
           </div>
           <div className="flex-1 overflow-hidden">

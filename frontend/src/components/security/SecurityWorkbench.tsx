@@ -28,6 +28,9 @@ import {
 } from "lucide-react";
 import AIThreatAnalysisSection from "../enrichment/AIThreatAnalysisSection";
 import AIRiskCorrelationSection from "../enrichment/AIRiskCorrelationSection";
+import AISecurityAnalysisSection from "./AISecurityAnalysisSection";
+import AIArchitectureAnalysisSection from "../enrichment/AIArchitectureAnalysisSection";
+import DependencyAnalysisSection from "../dependency/DependencyAnalysisSection";
 
 interface SecurityWorkbenchProps {
   report: any;
@@ -40,6 +43,7 @@ interface SecurityWorkbenchProps {
   onDiscussInChat: (f: any) => void;
   onNavigateToReports: () => void;
 }
+
 
 export default function SecurityWorkbench({
   report,
@@ -66,29 +70,60 @@ export default function SecurityWorkbench({
     setTimeout(() => setCopiedFix(false), 2000);
   };
 
+  // Filter out AI-validated findings from deterministic findings baseline
+  const deterministicFindings = useMemo(() => {
+    return (findings || []).filter(
+      (f: any) =>
+        f.source !== "AI_VALIDATED" &&
+        f.engine !== "grok_security_reasoning" &&
+        !(f.rule_id || "").startsWith("AI-SEC-")
+    );
+  }, [findings]);
+
+  // Aggregate AI security insights from agentic state and AI-validated findings
+  const aiSecurityInsights = useMemo(() => {
+    if (!agenticMatchesCurrentScan) return [];
+    const fromState = agentic.result?.ai_security_insights || [];
+    const fromFindings = (findings || []).filter(
+      (f: any) =>
+        f.source === "AI_VALIDATED" ||
+        f.engine === "grok_security_reasoning" ||
+        (f.rule_id || "").startsWith("AI-SEC-")
+    );
+
+    const map = new Map<string, any>();
+    [...fromState, ...fromFindings].forEach((item) => {
+      const id = item.finding_id || item.id || item.rule_id;
+      if (id && !map.has(id)) {
+        map.set(id, item);
+      }
+    });
+    return Array.from(map.values());
+  }, [agenticMatchesCurrentScan, agentic, findings]);
+
   // Compute severity distribution
   const severityCounts = useMemo(() => {
     const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-    findings.forEach((f) => {
+    deterministicFindings.forEach((f) => {
       const sev = (f.severity || "low").toLowerCase();
       if (sev in counts) counts[sev as keyof typeof counts]++;
       else counts.low++;
     });
     return counts;
-  }, [findings]);
+  }, [deterministicFindings]);
 
   // Compute categories
   const categories = useMemo(() => {
     const cats = new Set<string>();
-    findings.forEach((f) => {
+    deterministicFindings.forEach((f) => {
       if (f.category) cats.add(f.category);
     });
     return Array.from(cats);
-  }, [findings]);
+  }, [deterministicFindings]);
 
   // Filtered findings list
   const filteredFindings = useMemo(() => {
-    return findings.filter((f) => {
+    return deterministicFindings.filter((f) => {
       const sevMatch =
         selectedSeverity === "ALL" ||
         (f.severity || "").toLowerCase() === selectedSeverity.toLowerCase();
@@ -107,7 +142,7 @@ export default function SecurityWorkbench({
 
       return sevMatch && catMatch && searchMatch;
     });
-  }, [findings, selectedSeverity, selectedCategory, searchQuery]);
+  }, [deterministicFindings, selectedSeverity, selectedCategory, searchQuery]);
 
   // Currently active selected finding object
   const activeFinding = useMemo(() => {
@@ -134,30 +169,30 @@ export default function SecurityWorkbench({
     const s = (sev || "").toLowerCase();
     switch (s) {
       case "critical":
-        return "bg-red-500/15 text-red-400 border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.2)]";
+        return "bg-red-50 text-red-700 border-red-200";
       case "high":
-        return "bg-[#ff5400]/15 text-[#ff5400] border-[#ff5400]/30 shadow-[0_0_12px_rgba(255,84,0,0.2)]";
+        return "bg-orange-50 text-orange-700 border-orange-200";
       case "medium":
-        return "bg-amber-500/15 text-amber-400 border-amber-500/30";
+        return "bg-amber-50 text-amber-700 border-amber-200";
       case "low":
-        return "bg-sky-500/15 text-sky-400 border-sky-500/30";
+        return "bg-sky-50 text-sky-700 border-sky-200";
       default:
-        return "bg-slate-500/15 text-slate-400 border-slate-500/30";
+        return "bg-slate-100 text-slate-600 border-slate-200";
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Workbench Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/8">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-[#ff5400]" />
-            <h1 className="text-base font-mono font-bold text-[#f4f4f8] tracking-wide uppercase">
-              SECURITY OPERATIONS WORKBENCH
+            <Shield className="w-7 h-7 text-[#2563EB]" />
+            <h1 className="text-[20px] font-bold text-slate-900 tracking-tight leading-[1.3]">
+              Security Operations Workbench
             </h1>
           </div>
-          <p className="text-[11px] font-mono text-[#8e8e9a] mt-1">
+          <p className="text-[14px] font-sans font-normal text-slate-600 mt-1 leading-[1.5]">
             Real-time vulnerability triage, AST code trace inspection &amp; AI automated remediation
           </p>
         </div>
@@ -165,17 +200,17 @@ export default function SecurityWorkbench({
         <div className="flex items-center gap-3">
           <button
             onClick={onNavigateToReports}
-            className="px-3.5 py-1.5 rounded-lg bg-[#12131a] border border-white/10 hover:border-[#ff5400]/40 text-[#f4f4f8] text-[10.5px] font-mono font-bold flex items-center gap-1.5 transition"
+            className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 text-[14px] font-semibold leading-[1.4] flex items-center gap-2 transition shadow-sm"
           >
-            <FileCode className="w-3.5 h-3.5 text-[#ff5400]" />
+            <FileCode className="w-4 h-4 text-[#2563EB]" />
             Reports Center
           </button>
           {!agenticMatchesCurrentScan && (
             <button
               onClick={runAgenticForCurrentScan}
-              className="px-3.5 py-1.5 rounded-lg bg-[#ff5400]/15 hover:bg-[#ff5400]/25 text-[#ff5400] border border-[#ff5400]/30 text-[10.5px] font-mono font-bold flex items-center gap-1.5 transition shadow-[0_0_15px_rgba(255,84,0,0.15)]"
+              className="px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[14px] font-semibold leading-[1.4] flex items-center gap-2 transition shadow-sm"
             >
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              <Sparkles className="w-4 h-4 animate-pulse" />
               Enrich with AI Agentic Scan
             </button>
           )}
@@ -183,59 +218,59 @@ export default function SecurityWorkbench({
       </div>
 
       {/* Filter & Control Ribbon */}
-      <div className="p-4 rounded-xl bg-[#12131a] border border-white/8 space-y-3.5">
+      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Severity Chips */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-[10px] font-mono text-[#8e8e9a] uppercase font-bold tracking-wider mr-1">
+            <span className="text-[12px] font-sans font-semibold text-slate-500 mr-1">
               Severity:
             </span>
             <button
               onClick={() => setSelectedSeverity("ALL")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition border ${
+              className={`px-3.5 py-1.5 rounded-lg text-[13px] font-sans font-semibold transition border ${
                 selectedSeverity === "ALL"
-                  ? "bg-[#ff5400]/20 text-[#ff5400] border-[#ff5400]/50 shadow-[0_0_10px_rgba(255,84,0,0.2)]"
-                  : "bg-[#0c0d11] text-[#8e8e9a] border-white/5 hover:border-white/20"
+                  ? "bg-[#2563EB] text-white border-[#2563EB] shadow-xs"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
               }`}
             >
-              All ({findings.length})
+              All ({deterministicFindings.length})
             </button>
             <button
               onClick={() => setSelectedSeverity("CRITICAL")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition border ${
+              className={`px-3.5 py-1.5 rounded-lg text-[13px] font-sans font-semibold transition border ${
                 selectedSeverity === "CRITICAL"
-                  ? "bg-red-500/25 text-red-400 border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.25)]"
-                  : "bg-[#0c0d11] text-[#8e8e9a] border-white/5 hover:border-red-500/30"
+                  ? "bg-rose-100 text-rose-800 border-rose-300 shadow-xs"
+                  : "bg-rose-50/70 text-rose-700 border-rose-200 hover:bg-rose-100/70"
               }`}
             >
               Critical ({severityCounts.critical})
             </button>
             <button
               onClick={() => setSelectedSeverity("HIGH")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition border ${
+              className={`px-3.5 py-1.5 rounded-lg text-[13px] font-sans font-semibold transition border ${
                 selectedSeverity === "HIGH"
-                  ? "bg-[#ff5400]/25 text-[#ff5400] border-[#ff5400]/60 shadow-[0_0_10px_rgba(255,84,0,0.25)]"
-                  : "bg-[#0c0d11] text-[#8e8e9a] border-white/5 hover:border-[#ff5400]/30"
+                  ? "bg-amber-100 text-amber-900 border-amber-300 shadow-xs"
+                  : "bg-amber-50/70 text-amber-800 border-amber-200 hover:bg-amber-100/70"
               }`}
             >
               High ({severityCounts.high})
             </button>
             <button
               onClick={() => setSelectedSeverity("MEDIUM")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition border ${
+              className={`px-3.5 py-1.5 rounded-lg text-[13px] font-sans font-semibold transition border ${
                 selectedSeverity === "MEDIUM"
-                  ? "bg-amber-500/25 text-amber-400 border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.25)]"
-                  : "bg-[#0c0d11] text-[#8e8e9a] border-white/5 hover:border-amber-500/30"
+                  ? "bg-yellow-100 text-yellow-900 border-yellow-300 shadow-xs"
+                  : "bg-yellow-50/70 text-yellow-800 border-yellow-200 hover:bg-yellow-100/70"
               }`}
             >
               Medium ({severityCounts.medium})
             </button>
             <button
               onClick={() => setSelectedSeverity("LOW")}
-              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition border ${
+              className={`px-3.5 py-1.5 rounded-lg text-[13px] font-sans font-semibold transition border ${
                 selectedSeverity === "LOW"
-                  ? "bg-sky-500/25 text-sky-400 border-sky-500/60"
-                  : "bg-[#0c0d11] text-[#8e8e9a] border-white/5 hover:border-sky-500/30"
+                  ? "bg-blue-100 text-blue-900 border-blue-300 shadow-xs"
+                  : "bg-blue-50/70 text-blue-800 border-blue-200 hover:bg-blue-100/70"
               }`}
             >
               Low ({severityCounts.low})
@@ -244,30 +279,30 @@ export default function SecurityWorkbench({
 
           {/* Search Box */}
           <div className="relative w-full sm:w-64">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#8e8e9a]" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7F95]" />
             <input
               type="text"
               placeholder="Filter CWE, file, title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#0c0d11] border border-white/8 rounded-lg text-[11px] font-mono text-[#f4f4f8] placeholder-[#5c5c68] focus:outline-none focus:border-[#ff5400]/50 transition"
+              className="w-full pl-9 pr-3.5 py-1.5 bg-[#F3F7FC] border border-[#C8D6E5] rounded-lg text-[14px] font-sans font-normal leading-[1.5] text-[#0B1F33] placeholder-[#6B7F95] focus:outline-none focus:border-[#0070F2] focus:bg-white transition"
             />
           </div>
         </div>
 
-        {/* Category Pills if categories exist */}
+        {/* Category Row — Navy Theme Specs */}
         {categories.length > 0 && (
-          <div className="flex items-center gap-2 pt-1 border-t border-white/5">
-            <span className="text-[9.5px] font-mono text-[#5c5c68] uppercase font-bold tracking-wider">
+          <div className="flex items-center gap-2 pt-3 mt-1.5 border-t border-[#D9E3EE]">
+            <span className="text-[12px] font-sans font-semibold text-[#4F6480] mr-1">
               Categories:
             </span>
-            <div className="flex items-center gap-1.5 overflow-x-auto">
+            <div className="flex items-center gap-2 overflow-x-auto">
               <button
                 onClick={() => setSelectedCategory("ALL")}
-                className={`px-2.5 py-0.5 rounded text-[9.5px] font-mono transition ${
+                className={`px-3.5 py-1.5 rounded-lg text-[13px] font-sans font-semibold leading-[1.4] transition ${
                   selectedCategory === "ALL"
-                    ? "bg-[#f4f4f8]/10 text-[#f4f4f8] font-bold"
-                    : "text-[#8e8e9a] hover:text-[#f4f4f8]"
+                    ? "bg-[#EAF3FF] text-[#0064D8] border border-[#BFDBFE]"
+                    : "bg-transparent border-0 text-[#4F6480] hover:text-[#0B1F33] hover:bg-[#F3F7FC]"
                 }`}
               >
                 All
@@ -276,10 +311,10 @@ export default function SecurityWorkbench({
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-2.5 py-0.5 rounded text-[9.5px] font-mono transition ${
+                  className={`px-3.5 py-1.5 rounded-lg text-[13px] font-sans font-semibold leading-[1.4] transition ${
                     selectedCategory === cat
-                      ? "bg-[#ff5400]/20 text-[#ff5400] font-bold"
-                      : "text-[#8e8e9a] hover:text-[#f4f4f8]"
+                      ? "bg-[#EAF3FF] text-[#0064D8] border border-[#BFDBFE]"
+                      : "bg-transparent border-0 text-[#4F6480] hover:text-[#0B1F33] hover:bg-[#F3F7FC]"
                   }`}
                 >
                   {cat}
@@ -291,21 +326,21 @@ export default function SecurityWorkbench({
       </div>
 
       {/* Dual-Pane Triage Workbench */}
-      {findings.length === 0 ? (
-        <div className="rounded-xl bg-[#12131a] border border-white/8 p-12 text-center space-y-3">
-          <Shield className="w-10 h-10 text-[#5c5c68] mx-auto opacity-50" />
-          <h2 className="text-xs font-mono font-bold text-[#f4f4f8] uppercase tracking-wider">
-            No Security Findings Detected
+      {deterministicFindings.length === 0 ? (
+        <div className="rounded-2xl bg-white border border-slate-200 p-12 text-center space-y-3 shadow-sm">
+          <Shield className="w-10 h-10 text-slate-400 mx-auto opacity-50" />
+          <h2 className="text-[16px] font-sans font-bold text-slate-900">
+            No Deterministic Security Findings Detected
           </h2>
-          <p className="text-[11px] font-mono text-[#8e8e9a] max-w-md mx-auto">
-            Your repository scan passed with zero deterministic findings. Run an AI agentic scan for deep threat simulation.
+          <p className="text-[14px] font-sans font-normal text-slate-500 max-w-md mx-auto leading-[1.5]">
+            Your baseline static repository scan passed with zero deterministic findings. Run an AI agentic scan for deep semantic security analysis and threat simulation.
           </p>
         </div>
       ) : filteredFindings.length === 0 ? (
-        <div className="rounded-xl bg-[#12131a] border border-white/8 p-10 text-center space-y-2">
-          <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto opacity-80" />
-          <h3 className="text-xs font-mono font-bold text-[#f4f4f8]">No Matching Findings</h3>
-          <p className="text-[11px] font-mono text-[#8e8e9a]">
+        <div className="rounded-2xl bg-white border border-slate-200 p-10 text-center space-y-2 shadow-sm">
+          <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto opacity-80" />
+          <h3 className="text-[15px] font-sans font-semibold text-slate-900">No Matching Findings</h3>
+          <p className="text-[14px] font-sans font-normal text-slate-500">
             No vulnerabilities match your active search filter or severity criteria.
           </p>
           <button
@@ -314,24 +349,24 @@ export default function SecurityWorkbench({
               setSelectedCategory("ALL");
               setSearchQuery("");
             }}
-            className="mt-2 text-[10px] font-mono font-bold text-[#ff5400] underline"
+            className="mt-2 text-[13px] font-sans font-semibold text-[#2563EB] hover:underline"
           >
             Clear Filters
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[560px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[580px]">
           {/* Left Explorer Pane (5 cols on lg) */}
-          <div className="lg:col-span-5 rounded-xl bg-[#12131a] border border-white/8 flex flex-col overflow-hidden">
-            <div className="px-4 py-3 bg-[#0c0d11] border-b border-white/8 flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8e8e9a] flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-[#ff5400]" />
-                Vulnerability Registry ({filteredFindings.length})
+          <div className="lg:col-span-5 rounded-2xl bg-white border border-slate-200 flex flex-col overflow-hidden shadow-sm">
+            <div className="px-4.5 py-3.5 bg-[#F8FAFC] border-b border-slate-200 flex items-center justify-between">
+              <span className="text-[14px] font-sans font-semibold text-slate-900 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-[#2563EB]" />
+                Deterministic Security Findings ({filteredFindings.length})
               </span>
-              <span className="text-[9px] font-mono text-[#5c5c68]">Select to inspect</span>
+              <span className="text-[13px] font-sans font-normal text-slate-500">Select to inspect</span>
             </div>
 
-            <div className="divide-y divide-white/5 overflow-y-auto max-h-[580px] p-2 space-y-1">
+            <div className="divide-y divide-slate-200 overflow-y-auto max-h-[580px] p-3 space-y-2">
               {filteredFindings.map((f: any) => {
                 const fid = f.finding_id || f.id;
                 const isSelected = activeFinding && (activeFinding.finding_id || activeFinding.id) === fid;
@@ -341,41 +376,41 @@ export default function SecurityWorkbench({
                   <div
                     key={fid}
                     onClick={() => setSelectedFindingId(fid)}
-                    className={`p-3 rounded-lg cursor-pointer transition relative group ${
+                    className={`p-4 rounded-xl cursor-pointer transition relative group ${
                       isSelected
-                        ? "bg-[#181a24] border border-[#ff5400]/40 shadow-[0_0_15px_rgba(255,84,0,0.1)]"
-                        : "bg-[#0c0d11]/60 border border-transparent hover:bg-[#14151f] hover:border-white/10"
+                        ? "bg-[#EFF6FF] border border-[#2563EB] shadow-xs text-slate-900"
+                        : "bg-white border border-slate-200 hover:border-slate-300 hover:bg-[#F8FAFC]"
                     }`}
                   >
                     {isSelected && (
-                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-[#ff5400]" />
+                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-[#2563EB]" />
                     )}
 
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded font-mono font-bold text-[8.5px] uppercase border ${sevStyle}`}>
+                          <span className={`px-2 py-0.5 rounded font-sans font-semibold text-[11px] leading-[1.3] uppercase border ${sevStyle}`}>
                             {(f.severity || "LOW").toUpperCase()}
                           </span>
-                          <span className="text-[10px] font-mono text-[#8e8e9a] font-bold">
+                          <span className="text-[12px] font-mono text-[#2563EB] font-bold px-1.5 py-0.5 rounded bg-blue-50">
                             {f.cwe || f.cwe_id || "SAST"}
                           </span>
                         </div>
-                        <h4 className="text-[11.5px] font-mono font-bold text-[#f4f4f8] truncate group-hover:text-[#ff5400] transition">
+                        <h4 className={`text-[15px] font-semibold leading-[1.4] truncate transition ${isSelected ? "text-blue-950" : "text-slate-900 group-hover:text-[#2563EB]"}`}>
                           {f.category || f.title || "Vulnerability Finding"}
                         </h4>
                       </div>
 
-                      <ChevronRight className={`w-4 h-4 flex-shrink-0 transition ${isSelected ? "text-[#ff5400]" : "text-[#5c5c68]"}`} />
+                      <ChevronRight className={`w-4 h-4 flex-shrink-0 transition ${isSelected ? "text-[#2563EB]" : "text-slate-400"}`} />
                     </div>
 
-                    <div className="mt-2 flex items-center justify-between text-[9.5px] font-mono text-[#8e8e9a]">
-                      <span className="truncate max-w-[200px] text-[#5c5c68]">
+                    <div className="mt-2 flex items-center justify-between text-[13px] text-slate-500">
+                      <span className="truncate max-w-[200px] font-mono text-[13px] text-slate-600">
                         {f.file}:{f.line || f.line_number || "1"}
                       </span>
                       {f.is_exploitable && (
-                        <span className="text-[#ff5400] font-bold flex items-center gap-1">
-                          <Flame className="w-3 h-3" /> Exploitable ({Math.round((f.exploitability_score || 0.8) * 100)}%)
+                        <span className="text-amber-700 font-semibold text-[12px] flex items-center gap-1">
+                          <Flame className="w-3.5 h-3.5 text-amber-600" /> Exploitable ({Math.round((f.exploitability_score || 0.8) * 100)}%)
                         </span>
                       )}
                     </div>
@@ -387,15 +422,15 @@ export default function SecurityWorkbench({
 
           {/* Right Inspector Pane (7 cols on lg) */}
           {activeFinding && (
-            <div className="lg:col-span-7 rounded-xl bg-[#12131a] border border-white/8 flex flex-col overflow-hidden space-y-4 p-5">
+            <div className="lg:col-span-7 rounded-2xl bg-white border border-slate-200 flex flex-col overflow-hidden space-y-5 p-6 shadow-sm">
               {/* Header Title & Actions */}
-              <div className="space-y-2 pb-3 border-b border-white/8">
+              <div className="space-y-2 pb-3 border-b border-slate-200">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-1 rounded-md font-mono font-bold text-[10px] uppercase border ${getSeverityStyle(activeFinding.severity)}`}>
+                    <span className={`px-2.5 py-1 rounded-md font-sans font-semibold text-[11px] leading-[1.3] uppercase border ${getSeverityStyle(activeFinding.severity)}`}>
                       {(activeFinding.severity || "LOW").toUpperCase()}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-white/5 text-[#8e8e9a] text-[10px] font-mono">
+                    <span className="px-2 py-0.5 rounded bg-blue-50 text-[#2563EB] border border-blue-200 text-xs font-mono font-bold">
                       {activeFinding.cwe || activeFinding.cwe_id || "SAST"}
                     </span>
                   </div>
@@ -403,88 +438,101 @@ export default function SecurityWorkbench({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => onDiscussInChat(activeFinding)}
-                      className="px-2.5 py-1 rounded bg-[#ff5400]/10 hover:bg-[#ff5400]/20 text-[#ff5400] text-[10px] font-mono font-bold border border-[#ff5400]/25 flex items-center gap-1 transition"
+                      className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-[14px] font-semibold border border-slate-200 flex items-center gap-1.5 transition shadow-xs"
                     >
-                      <MessageSquare className="w-3 h-3" /> Discuss AI
+                      <MessageSquare className="w-3.5 h-3.5 text-[#2563EB]" /> Discuss with AI
                     </button>
                   </div>
                 </div>
 
-                <h3 className="text-sm font-mono font-bold text-[#f4f4f8]">
+                <h3 className="text-[16px] md:text-[18px] font-semibold text-slate-900 leading-[1.3]">
                   {activeFinding.category || activeFinding.title || "Vulnerability Finding Details"}
                 </h3>
-                <p className="text-[11px] font-mono text-[#8e8e9a] leading-relaxed">
+                <p className="text-[14px] font-sans font-normal text-slate-600 leading-[1.5]">
                   {activeFinding.description || "Potential security issue detected during deterministic static code analysis."}
                 </p>
               </div>
 
               {/* Code Snippet & Sink Location */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] font-mono text-[#8e8e9a]">
-                  <span className="flex items-center gap-1 text-[#f4f4f8] font-bold">
-                    <FileCode className="w-3.5 h-3.5 text-[#ff5400]" />
+                <div className="flex items-center justify-between text-[13px] font-sans text-slate-500">
+                  <span className="flex items-center gap-1 text-slate-900 font-semibold">
+                    <FileCode className="w-3.5 h-3.5 text-[#2563EB]" />
                     Target Code Location:
                   </span>
-                  <span>{activeFinding.file}:{activeFinding.line || activeFinding.line_number || 1}</span>
+                  <span className="text-[#2563EB] font-mono font-semibold">{activeFinding.file}:{activeFinding.line || activeFinding.line_number || 1}</span>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-[#08090c] border border-white/10 font-mono text-[11px] overflow-x-auto space-y-1">
-                  <div className="text-[9.5px] text-[#5c5c68] uppercase font-bold tracking-wider mb-2">
+                <div className="p-4 rounded-xl bg-[#0F172A] border border-slate-800 text-slate-100 font-mono text-[13px] leading-[1.5] overflow-x-auto space-y-1">
+                  <div className="text-[11px] text-slate-400 uppercase font-semibold tracking-wider mb-2">
                     Code Context / AST Sink:
                   </div>
-                  <div className="text-[#8e8e9a] flex items-center gap-3">
-                    <span className="text-[#5c5c68] font-bold select-none">{Math.max(1, (activeFinding.line || 1) - 1)}</span>
+                  <div className="text-[#7F9AB7] flex items-center gap-3">
+                    <span className="text-[#7F9AB7] font-bold select-none">{Math.max(1, (activeFinding.line || 1) - 1)}</span>
                     <span className="opacity-70">// Vulnerable component execution context</span>
                   </div>
-                  <div className="bg-[#ff5400]/10 border-l-2 border-[#ff5400] pl-2 -ml-2 py-0.5 text-white font-bold flex items-center gap-3">
-                    <span className="text-[#ff5400] font-bold select-none">{activeFinding.line || activeFinding.line_number || 1}</span>
-                    <span className="text-[#ff5400] whitespace-pre-wrap">
+                  <div className="bg-red-950/70 border-l-2 border-red-500 pl-2 -ml-2 py-0.5 text-red-200 font-bold flex items-center gap-3">
+                    <span className="text-red-400 font-bold select-none">{activeFinding.line || activeFinding.line_number || 1}</span>
+                    <span className="text-red-200 whitespace-pre-wrap">
                       {activeFinding.snippet || activeFinding.code_snippet || activeFinding.code || activeFinding.evidence || activeFinding.line_content || activeFinding.description || "// Vulnerable code line detected here"}
                     </span>
                   </div>
-                  <div className="text-[#8e8e9a] flex items-center gap-3">
-                    <span className="text-[#5c5c68] font-bold select-none">{(activeFinding.line || 1) + 1}</span>
+                  <div className="text-[#7F9AB7] flex items-center gap-3">
+                    <span className="text-[#7F9AB7] font-bold select-none">{(activeFinding.line || 1) + 1}</span>
                     <span className="opacity-70">// End execution block</span>
                   </div>
                 </div>
               </div>
 
+              {/* Why this is a problem? Information Box (Navy Specs) */}
+              <div className="p-3.5 rounded-xl bg-[#EAF3FF] border border-[#AFCBEB] flex items-start gap-3">
+                <Info className="w-4 h-4 text-[#0064D8] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-[13px] font-sans font-semibold text-[#062B5C] mb-0.5">
+                    Why this is a problem?
+                  </h4>
+                  <p className="text-[14px] font-sans font-normal text-[#4F6480] leading-[1.5]">
+                    {activeFinding.description || activeFinding.details || "Potential security issue detected during deterministic static code analysis that may allow unauthorized access, data exposure, or system exploitation."}
+                  </p>
+                </div>
+              </div>
+
               {/* Visual Taint Data Flow Path */}
-              <div className="p-3.5 rounded-lg bg-[#0c0d11] border border-white/8 space-y-2">
-                <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8e8e9a] flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-[#ff5400]" />
+              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+                <div className="text-[13px] font-sans font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-blue-600" />
                   Taint Data Execution Flow (Source &rarr; Sink)
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-1 text-[10px] font-mono">
-                  <div className="p-2 rounded bg-[#12131a] border border-sky-500/30 text-sky-400">
-                    <span className="font-bold block text-[8.5px] uppercase text-sky-300">1. Source (Entry)</span>
-                    <span className="text-[#8e8e9a] text-[9.5px]">User Request / HTTP Parameter</span>
+                <div className="grid grid-cols-3 gap-2 pt-1 text-[12px] font-sans">
+                  <div className="p-2 rounded bg-white border border-sky-300 text-sky-700 shadow-sm">
+                    <span className="font-semibold block text-[11px] text-sky-800">1. Source (Entry)</span>
+                    <span className="text-slate-600 text-[12px]">User Request / HTTP Parameter</span>
                   </div>
-                  <div className="p-2 rounded bg-[#12131a] border border-amber-500/30 text-amber-400">
-                    <span className="font-bold block text-[8.5px] uppercase text-amber-300">2. Sanitizer Check</span>
-                    <span className="text-[#8e8e9a] text-[9.5px]">
+                  <div className="p-2 rounded bg-white border border-amber-300 text-amber-700 shadow-sm">
+                    <span className="font-semibold block text-[11px] text-amber-800">2. Sanitizer Check</span>
+                    <span className="text-slate-600 text-[12px]">
                       {activeFinding.is_exploitable ? "Missing / Unescaped" : "Partial Validation"}
                     </span>
                   </div>
-                  <div className="p-2 rounded bg-[#12131a] border border-red-500/30 text-red-400">
-                    <span className="font-bold block text-[8.5px] uppercase text-red-300">3. Sink (Execution)</span>
-                    <span className="text-[#8e8e9a] text-[9.5px] truncate block">{activeFinding.cwe || "Dangerous API Call"}</span>
+                  <div className="p-2 rounded bg-white border border-red-300 text-red-700 shadow-sm">
+                    <span className="font-semibold block text-[11px] text-red-800">3. Sink (Execution)</span>
+                    <span className="text-slate-600 text-[12px] font-mono truncate block">{activeFinding.cwe || "Dangerous API Call"}</span>
                   </div>
                 </div>
               </div>
 
               {/* AI Remediation Patch workbench */}
-              <div className="pt-2 border-t border-white/8 space-y-2">
+              <div className="pt-2 border-t border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10.5px] font-mono font-bold text-[#f4f4f8] flex items-center gap-1.5">
-                    <GitPullRequest className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-[14px] font-sans font-semibold text-slate-900 flex items-center gap-1.5">
+                    <GitPullRequest className="w-3.5 h-3.5 text-emerald-600" />
                     AI Remediation Patch Proposal
                   </span>
                   {(activePatch || activeFinding.recommendation || activeFinding.suggested_fix) && (
                     <button
                       onClick={() => setShowPatchDiff(!showPatchDiff)}
-                      className="text-[9.5px] font-mono text-[#ff5400] hover:underline"
+                      className="text-[13px] font-sans font-semibold text-blue-600 hover:text-blue-700 hover:underline"
                     >
                       {showPatchDiff ? "Hide Patch Diff" : "Show Patch Diff"}
                     </button>
@@ -601,41 +649,41 @@ export default function SecurityWorkbench({
 
                   if (showPatchDiff) {
                     return (
-                      <div className="p-3.5 rounded-lg bg-[#08090c] border border-emerald-500/30 font-mono text-[10.5px] space-y-3">
+                      <div className="p-3.5 rounded-lg bg-emerald-50/50 border border-emerald-200 font-mono text-[10.5px] space-y-3">
                         <div className="flex items-center justify-between">
-                          <div className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                          <div className="text-[9px] text-emerald-800 font-bold uppercase tracking-wider flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             {activePatch?.validation_status ? `Patch Validation: ${activePatch.validation_status}` : "Suggested Code Replacement:"}
                           </div>
-                          <span className="text-[8.5px] font-mono text-[#8e8e9a]">
+                          <span className="text-[8.5px] font-mono text-slate-600">
                             Confidence: {activePatch?.confidence ? `${(activePatch.confidence * 100).toFixed(0)}%` : "95% (AST Verified)"}
                           </span>
                         </div>
 
                         {/* Developer Explanation */}
-                        <div className="text-[10px] text-[#8e8e9a] bg-[#12131a] p-2.5 rounded border border-white/5 leading-relaxed space-y-1">
-                          <span className="text-[#f4f4f8] font-bold block text-[9px] uppercase tracking-wider">Fix Strategy:</span>
+                        <div className="text-[10px] text-slate-700 bg-white p-2.5 rounded border border-slate-200 leading-relaxed space-y-1">
+                          <span className="text-slate-900 font-bold block text-[9px] uppercase tracking-wider">Fix Strategy:</span>
                           <span>{patchExplanation}</span>
                         </div>
 
                         {/* Visual Code Replacement Diff Box (Red vs Green) */}
-                        <div className="space-y-1.5 rounded-lg bg-[#040507] border border-white/10 p-2.5">
+                        <div className="space-y-1.5 rounded-lg bg-slate-900 border border-slate-800 p-2.5 text-slate-100">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-[#8e8e9a]">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
                               Line Replacement Diff:
                             </span>
                             <button
                               onClick={() => handleCopyFixText(suggestedSnippet)}
-                              className="px-2.5 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono font-bold flex items-center gap-1 transition shadow-[0_0_10px_rgba(16,185,129,0.15)]"
+                              className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 text-[9px] font-mono font-bold flex items-center gap-1 transition shadow-sm"
                               title="Copy secure replacement code line to clipboard"
                             >
                               {copiedFix ? (
                                 <>
-                                  <Check className="w-3 h-3 text-emerald-400" /> Copied Fix!
+                                  <Check className="w-3 h-3 text-white" /> Copied Fix!
                                 </>
                               ) : (
                                 <>
-                                  <Copy className="w-3 h-3 text-emerald-400" /> Copy Fix Code
+                                  <Copy className="w-3 h-3 text-white" /> Copy Fix Code
                                 </>
                               )}
                             </button>
@@ -643,14 +691,14 @@ export default function SecurityWorkbench({
                           
                           {/* Red Original Vulnerable Line */}
                           {origSnippet && (
-                            <div className="bg-red-500/15 border-l-2 border-red-500 text-red-300 px-2 py-1 text-[10px] flex items-start gap-2">
-                              <span className="text-red-500 font-bold select-none">-</span>
+                            <div className="bg-red-950/50 border-l-2 border-red-500 text-red-200 px-2 py-1 text-[10px] flex items-start gap-2">
+                              <span className="text-red-400 font-bold select-none">-</span>
                               <span className="line-through opacity-80 whitespace-pre-wrap">{origSnippet}</span>
                             </div>
                           )}
 
                           {/* Green Corrected Code Replacement */}
-                          <div className="bg-emerald-500/15 border-l-2 border-emerald-500 text-emerald-300 px-2 py-1 text-[10px] flex items-start gap-2 font-bold">
+                          <div className="bg-emerald-950/50 border-l-2 border-emerald-500 text-emerald-200 px-2 py-1 text-[10px] flex items-start gap-2 font-bold">
                             <span className="text-emerald-400 font-bold select-none">+</span>
                             <span className="whitespace-pre-wrap">{suggestedSnippet}</span>
                           </div>
@@ -660,11 +708,11 @@ export default function SecurityWorkbench({
                   }
 
                   return (
-                    <div className="p-3 rounded-lg bg-[#0c0d11] border border-white/5 text-[10.5px] font-mono text-[#8e8e9a] flex items-center justify-between">
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[10.5px] font-mono text-slate-600 flex items-center justify-between">
                       <span>Click 'Show Patch Diff' to view the suggested code replacement.</span>
                       <button
                         onClick={() => setShowPatchDiff(true)}
-                        className="px-2.5 py-1 rounded bg-[#ff5400]/15 hover:bg-[#ff5400]/25 text-[#ff5400] font-bold text-[9.5px] transition"
+                        className="px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-[9.5px] transition"
                       >
                         Show Patch Fix
                       </button>
@@ -678,7 +726,36 @@ export default function SecurityWorkbench({
       )}
 
       {/* AI Threat Analysis & Risk Correlation Sections */}
-      <div className="pt-4 space-y-6">
+      <div className="pt-2 space-y-6">
+        <AIArchitectureAnalysisSection
+          architectureAnalysis={agentic.result?.architecture_analysis || agentic.state?.architecture_context || {}}
+          aiArchitectureInsights={
+            agentic.result?.ai_architecture_insights ||
+            agentic.result?.architecture_analysis?.ai_architecture_insights ||
+            agentic.state?.ai_architecture_insights ||
+            []
+          }
+          workflowStatus={agentic.workflowStatus}
+          hasRunForThisScan={agenticMatchesCurrentScan}
+          agenticScanId={agentic.scanId}
+          sourceScanId={agentic.sourceScanId}
+          grokStatus={
+            agentic.result?.architecture_analysis?.grok_status ||
+            agentic.state?.architecture_context?.grok_status
+          }
+          architectureAgentReason={
+            agentic.result?.architecture_analysis?.agent_reason ||
+            agentic.state?.architecture_context?.agent_reason
+          }
+          onRunAgentic={runAgenticForCurrentScan}
+          onDiscussInChat={onDiscussInChat}
+        />
+
+        <DependencyAnalysisSection
+          dependencyAnalysis={agentic.result?.dependency_analysis || agentic.state?.dependency_context || {}}
+          findings={findings}
+        />
+
         <AIThreatAnalysisSection
           findings={findings}
           attackPaths={agentic.result?.security_enrichment?.attack_paths || []}
@@ -703,3 +780,4 @@ export default function SecurityWorkbench({
     </div>
   );
 }
+

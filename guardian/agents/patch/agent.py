@@ -43,7 +43,34 @@ class PatchGenerationAgent(BaseAgent):
         git_diffs: List[str] = []
         dev_explanations: List[str] = []
 
-        for idx, f in enumerate(findings):
+        # Check if Grok AI reasoning is enabled for patch generation
+        grok_service = None
+        try:
+            from guardian.llm.config import LLMConfig
+            cfg = LLMConfig.from_env()
+            if cfg.is_agent_enabled("patch"):
+                from guardian.reasoning.gateway import ReasoningGateway
+                svc = ReasoningGateway(config=cfg)
+                if svc.configured:
+                    grok_service = svc
+        except Exception as exc:
+            self.logger.warning("Optional Grok AI patch reasoning init notice: %s", exc)
+
+        # Patch Gate: Only generate remediation proposals for actionable findings
+        actionable_findings = [
+            f for f in findings
+            if f.get("severity", "LOW").upper() in ("CRITICAL", "HIGH", "MEDIUM")
+            and f.get("confidence", 1.0) >= 0.70
+        ]
+
+        if not actionable_findings:
+            self.logger.info("Patch Gate: Skipping patch generation (no actionable findings requiring remediation)")
+            new_state = dict(state)
+            new_state["patches"] = []
+            new_state["developer_explanation"] = "Patch generation skipped: no actionable findings requiring remediation."
+            return new_state
+
+        for idx, f in enumerate(actionable_findings):
             f_id = f.get("finding_id", f"f-{idx+1}")
             rule_id = f.get("rule_id", "SEC-001")
             file_path = f.get("file_path", "app.py")
@@ -55,6 +82,40 @@ class PatchGenerationAgent(BaseAgent):
 
             # Generate grounded secure replacement code snippet
             suggested_replacement = self._generate_secure_snippet(rule_id, orig_snippet, language, f)
+            explanation = (
+                f"Remediated {rule_id} in {file_path}:{line_no} by introducing secure parameterized handling. "
+                f"Grounding Evidence ID: {ev_id}. Business Criticality: {biz_ctx.get('criticality', 'NORMAL')}."
+            )
+
+            # AI-assisted contextual patch generation via Grok if configured (top 5 findings max)
+            if grok_service is not None and idx < 5:
+                try:
+                    from guardian.reasoning.gateway import ReasoningRequest
+                    req = ReasoningRequest(
+                        task="patch_generation",
+                        instruction=(
+                            f"Generate a secure code replacement for vulnerability {rule_id} in {file_path}. "
+                            f"Language: {language}. Preserve existing logic while eliminating security risk."
+                        ),
+                        code_snippet=orig_snippet,
+                        evidence_block=f"[{ev_id or 'E1'}] {rule_id}: {f.get('description', '')}",
+                    )
+                    ai_res = grok_service.reason(req)
+                    if not ai_res.available:
+                        # Disable LLM for remaining findings if provider is not available
+                        grok_service = None
+                    elif ai_res.ok and ai_res.findings:
+                        ai_rec = ai_res.findings[0].recommendation or ai_res.findings[0].reason
+                        if ai_rec and len(ai_rec) > 5:
+                            suggested_replacement = ai_rec
+                            explanation = (
+                                f"Grok AI Remediated {rule_id} in {file_path}:{line_no}. "
+                                f"Reasoning: {ai_res.findings[0].reason}. Evidence ID: {ev_id}."
+                            )
+                except Exception as exc:
+                    self.logger.warning("Grok AI patch generation notice for %s: %s", f_id, exc)
+                    grok_service = None
+
 
             # Compute unified git diff string (NO DISK WRITE)
             diff_str = self.diff_generator.generate_unified_diff(
@@ -63,11 +124,6 @@ class PatchGenerationAgent(BaseAgent):
                 replacement_snippet=suggested_replacement
             )
             git_diffs.append(diff_str)
-
-            explanation = (
-                f"Remediated {rule_id} in {file_path}:{line_no} by introducing secure parameterized handling. "
-                f"Grounding Evidence ID: {ev_id}. Business Criticality: {biz_ctx.get('criticality', 'NORMAL')}."
-            )
             dev_explanations.append(explanation)
 
             policy_refs = [v.get("policy_name") for v in policy_res.get("violations", []) if v.get("finding_id") == f_id]
@@ -93,6 +149,7 @@ class PatchGenerationAgent(BaseAgent):
 
         combined_diff = "\n".join(git_diffs)
         combined_explanation = "\n---\n".join(dev_explanations)
+
 
         new_state = dict(state)
         new_state["patches"] = patches

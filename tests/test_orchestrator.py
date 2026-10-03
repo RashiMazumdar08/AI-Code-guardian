@@ -147,7 +147,8 @@ def test_planner_agent():
     assert planner_events[0].scan_id == "scan-999"
 
 
-def test_stategraph_workflow_execution():
+def test_stategraph_workflow_execution(monkeypatch):
+    monkeypatch.setenv("LLM_ENABLED", "false")
     bus = EventBus()
     events = []
     bus.subscribe(WorkflowStarted, lambda e: events.append("started"))

@@ -65,39 +65,39 @@ export function DetailPanel({
   const downstream = (graph?.edges || []).filter(([source]) => source === agentKey).map(([, target]) => target);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-end bg-slate-900/40 backdrop-blur-xs" onClick={onClose}>
       <div
-        className="h-full w-full max-w-md bg-[#0c0d11] border-l border-white/10 p-5 overflow-y-auto animate-in slide-in-from-right duration-200"
+        className="h-full w-full max-w-md bg-white border-l border-[#DCE5F0] p-5 overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a]">Agent Detail</div>
-            <div className="text-lg font-mono font-bold text-[#f4f4f8]">{label}</div>
+            <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500">Agent Detail</div>
+            <div className="text-lg font-mono font-bold text-[#111827]">{label}</div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/8 text-[#8e8e9a]">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="rounded-lg bg-[#12131a] border border-white/8 p-3 mb-3">
-          <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Status</div>
-          <div className="text-sm font-mono font-bold text-[#ff5400]">{runtime?.status || "WAITING"}</div>
-          {runtime?.reason && <div className="text-[10px] font-mono text-[#8e8e9a] mt-1">{runtime.reason}</div>}
-          {runtime?.error && <div className="text-[10px] font-mono text-red-400 mt-1">error: {runtime.error}</div>}
+        <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3 mb-3">
+          <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Status</div>
+          <div className="text-sm font-mono font-bold text-blue-600">{runtime?.status || "WAITING"}</div>
+          {runtime?.reason && <div className="text-[10px] font-mono text-slate-500 mt-1">{runtime.reason}</div>}
+          {runtime?.error && <div className="text-[10px] font-mono text-rose-600 mt-1">error: {runtime.error}</div>}
         </div>
 
         {io && (
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="rounded-lg bg-[#12131a] border border-white/8 p-3">
-              <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Input State Read</div>
-              <ul className="text-[10px] font-mono text-[#f4f4f8] space-y-0.5">
+            <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3">
+              <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Input State Read</div>
+              <ul className="text-[10px] font-mono text-[#111827] space-y-0.5">
                 {io.reads.map((r) => <li key={r}>· {r}</li>)}
               </ul>
             </div>
-            <div className="rounded-lg bg-[#12131a] border border-white/8 p-3">
-              <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Output State Written</div>
-              <ul className="text-[10px] font-mono text-[#f4f4f8] space-y-0.5">
+            <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3">
+              <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Output State Written</div>
+              <ul className="text-[10px] font-mono text-[#111827] space-y-0.5">
                 {io.writes.map((w) => <li key={w}>· {w}</li>)}
               </ul>
             </div>
@@ -105,56 +105,56 @@ export function DetailPanel({
         )}
 
         {affected && (
-          <div className="rounded-lg bg-[#12131a] border border-white/8 p-3 mb-3">
-            <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">{affected.label}</div>
-            <div className="text-[13px] font-mono font-bold text-[#f4f4f8]">{affected.value}</div>
+          <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3 mb-3">
+            <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">{affected.label}</div>
+            <div className="text-[13px] font-mono font-bold text-[#111827]">{affected.value}</div>
           </div>
         )}
 
-        <div className="rounded-lg bg-[#12131a] border border-white/8 p-3 mb-3">
-          <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Downstream Consumers</div>
-          <div className="text-[11px] font-mono text-[#f4f4f8]">
+        <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3 mb-3">
+          <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Downstream Consumers</div>
+          <div className="text-[11px] font-mono text-[#111827]">
             {downstream.length > 0 ? downstream.map((d) => GRAPH_LABELS[d] || d).join(", ") : "— (terminal node in this run's execution order)"}
           </div>
         </div>
 
         {trace ? (
           <div className="space-y-3">
-            <div className="rounded-lg bg-[#12131a] border border-white/8 p-3">
-              <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Task</div>
-              <div className="text-[11px] font-mono text-[#f4f4f8]">{trace.current_task}</div>
+            <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3">
+              <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Task</div>
+              <div className="text-[11px] font-mono text-[#111827]">{trace.current_task}</div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-[#12131a] border border-white/8 p-3">
-                <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Execution Time</div>
-                <div className="text-[11px] font-mono text-[#f4f4f8]">{(trace.execution_time * 1000).toFixed(1)}ms</div>
+              <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3">
+                <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Execution Time</div>
+                <div className="text-[11px] font-mono text-[#111827]">{(trace.execution_time * 1000).toFixed(1)}ms</div>
               </div>
-              <div className="rounded-lg bg-[#12131a] border border-white/8 p-3">
-                <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Confidence</div>
-                <div className="text-[11px] font-mono text-[#f4f4f8]">{trace.confidence}</div>
+              <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3">
+                <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Confidence</div>
+                <div className="text-[11px] font-mono text-[#111827]">{trace.confidence}</div>
               </div>
             </div>
-            <div className="rounded-lg bg-[#12131a] border border-white/8 p-3">
-              <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Tools Used</div>
-              <div className="text-[11px] font-mono text-[#f4f4f8]">{(trace.tools_used || []).join(", ") || "—"}</div>
+            <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3">
+              <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Tools Used</div>
+              <div className="text-[11px] font-mono text-[#111827]">{(trace.tools_used || []).join(", ") || "—"}</div>
             </div>
-            <div className="rounded-lg bg-[#12131a] border border-white/8 p-3">
-              <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Evidence IDs Generated</div>
-              <div className="text-[11px] font-mono text-[#f4f4f8]">{(trace.evidence_ids || []).join(", ") || "—"}</div>
+            <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3">
+              <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Evidence IDs Generated</div>
+              <div className="text-[11px] font-mono text-[#111827]">{(trace.evidence_ids || []).join(", ") || "—"}</div>
             </div>
-            <div className="rounded-lg bg-[#12131a] border border-white/8 p-3">
-              <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-1">Result</div>
+            <div className="rounded-lg bg-slate-50 border border-[#DCE5F0] p-3">
+              <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-1">Result</div>
               {trace.result?.status === "error" ? (
-                <div className="text-[11px] font-mono text-red-400">
+                <div className="text-[11px] font-mono text-rose-600 font-semibold">
                   error — {trace.errors?.join("; ") || trace.result?.error}
                 </div>
               ) : (
-                <div className="text-[11px] font-mono text-emerald-400">success</div>
+                <div className="text-[11px] font-mono text-emerald-600 font-semibold">success</div>
               )}
             </div>
           </div>
         ) : (
-          <div className="text-[11px] font-mono text-[#5c5c68] text-center py-8">
+          <div className="text-[11px] font-mono text-slate-500 text-center py-8">
             {runtime?.status === "SKIPPED"
               ? "This agent was not executed for this scan (see reason above)."
               : "This agent hasn't produced a trace record yet."}

@@ -1,0 +1,94 @@
+{
+  "Repository path": [
+    "C:\\Users\\Rashi Mazumdar\\Downloads\\ai_features-main (2)\\ai_features-main\\tests\\fixtures\\dv-bookshop_raw\\dv-bookshop-main",
+    "C:\\Users\\Rashi Mazumdar\\Downloads\\ai_features-main (2)\\ai_features-main\\tests\\fixtures\\dv-bookshop_raw\\dv-bookshop-main"
+  ],
+  "Scan ID": [
+    "scan-direct-test",
+    "scan_ui_test_789"
+  ],
+  "Agentic run ID": [
+    "N/A (standalone)",
+    "agentic_ui_run_999"
+  ],
+  "Scan mode": [
+    "full_scan",
+    "full_scan"
+  ],
+  "Deterministic findings": [
+    10,
+    0
+  ],
+  "Workspace profiles": [
+    231,
+    231
+  ],
+  "Top candidate #1": [
+    "admin_preview_url (app.py:1801)",
+    "admin_preview_url (app.py:1801)"
+  ],
+  "Top candidate #2": [
+    "profile (app.py:945)",
+    "profile (app.py:945)"
+  ],
+  "Top candidate #3": [
+    "edit_profile (app.py:976)",
+    "edit_profile (app.py:976)"
+  ],
+  "Top candidate #4": [
+    "change_password (app.py:1000)",
+    "change_password (app.py:1000)"
+  ],
+  "Top candidate #5": [
+    "delete_account (app.py:1045)",
+    "delete_account (app.py:1045)"
+  ],
+  "profile() discovered": [
+    "YES",
+    "YES"
+  ],
+  "profile() selected": [
+    "YES",
+    "YES"
+  ],
+  "Candidate snippets": [
+    "5 included",
+    "5 included"
+  ],
+  "Evidence/context size": [
+    "4049 chars",
+    "4113 chars"
+  ],
+  "should_call_grok": [
+    "True",
+    "True"
+  ],
+  "grok_status": [
+    "COMPLETED",
+    "COMPLETED"
+  ],
+  "Grok actually called": [
+    "YES",
+    "YES"
+  ],
+  "Grok findings returned": [
+    5,
+    5
+  ],
+  "Findings after validation": [
+    5,
+    5
+  ],
+  "ai_security_insights in state": [
+    5,
+    5
+  ],
+  "ai_security_insights in API": [
+    "N/A (standalone)",
+    "None (Omitted from API _build_agentic_analysis_result)"
+  ],
+  "Frontend receives AI findings": [
+    "N/A",
+    "0 (Reads agentic.result?.ai_security_insights which is None)"
+  ]
+}

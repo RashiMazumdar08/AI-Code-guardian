@@ -34,6 +34,7 @@ from guardian.ai.models import (
     AssistantResponse, ChatMessage, MessageRole, RAGQuery, RAGResult,
 )
 from guardian.llm.base import BaseLLM, LLMError
+from guardian.llm.rate_limit_handler import is_rate_limit_error, format_rate_limit_warning
 from guardian.ai.prompt_builder import PromptBuilder
 from guardian.ai.retriever import Retriever
 
@@ -157,7 +158,10 @@ class RAGPipeline:
         try:
             raw_answer = self._llm.chat(messages).content
         except LLMError as exc:
-            raw_answer = f"⚠️ LLM error: {exc}\n\nCheck NVIDIA_API_KEY and network connectivity."
+            if is_rate_limit_error(exc):
+                raw_answer = format_rate_limit_warning(exc, user_query=question, scan_report=self._scan_report)
+            else:
+                raw_answer = f"⚠️ LLM error: {exc}\n\nCheck NVIDIA_API_KEY and network connectivity."
 
         latency = (time.time() - t0) * 1000
         grounded = _NOT_FOUND_MARKER not in raw_answer and (bool(rag_result.chunks) or bool(exact_ctx))
@@ -246,10 +250,13 @@ class RAGPipeline:
                 accumulated += token
                 yield token
         except LLMError as exc:
-            error_msg = (
-                f"\n\n⚠️ LLM error: {exc}\n"
-                f"Check NVIDIA_API_KEY, model '{self._cfg.chat_model}', and connectivity."
-            )
+            if is_rate_limit_error(exc):
+                error_msg = "\n\n" + format_rate_limit_warning(exc, user_query=question, scan_report=self._scan_report)
+            else:
+                error_msg = (
+                    f"\n\n⚠️ LLM error: {exc}\n"
+                    f"Check NVIDIA_API_KEY, model '{self._cfg.chat_model}', and connectivity."
+                )
             accumulated += error_msg
             yield error_msg
 

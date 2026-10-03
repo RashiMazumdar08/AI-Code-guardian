@@ -72,28 +72,28 @@ export default function AgenticExecutionDrawer({
         onClick={handleClose}
       />
 
-      {/* Panel -- 70% viewport width (within the spec's 60-80% range), full height */}
-      <div className="absolute top-0 right-0 h-full w-full sm:w-[70%] min-w-[360px] bg-[#0B0F19] border-l border-white/10 shadow-[-8px_0_40px_rgba(0,0,0,0.5)] flex flex-col animate-in slide-in-from-right duration-250 ease-out">
+      {/* Panel -- 70% viewport width, full height */}
+      <div className="absolute top-0 right-0 h-full w-full sm:w-[70%] min-w-[360px] bg-[#EEF4FB] border-l border-[#DCE5F0] shadow-2xl flex flex-col animate-in slide-in-from-right duration-250 ease-out">
         {/* Header */}
-        <div className="shrink-0 px-6 py-4 border-b border-white/10 flex items-center justify-between gap-4 bg-[#0c0d11]">
+        <div className="shrink-0 px-6 py-4 border-b border-[#DCE5F0] flex items-center justify-between gap-4 bg-white">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#ff5400] shrink-0" />
-              <h2 className="text-sm font-mono font-bold text-[#f4f4f8] tracking-wide truncate">
+              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+              <h2 className="text-sm font-mono font-bold text-[#111827] tracking-wide truncate">
                 Agentic Analysis — Multi-Agent Workflow
               </h2>
             </div>
-            <p className="text-[10px] font-mono text-[#8e8e9a] mt-1 truncate">
+            <p className="text-[10px] font-mono text-slate-500 mt-1 truncate">
               {typeof findingsCount === "number"
                 ? `Reasoning over ${findingsCount} finding${findingsCount === 1 ? "" : "s"} from scan `
                 : "Reasoning over findings from scan "}
-              <code className="text-[#f4f4f8]">{sourceScanId || "—"}</code>
+              <code className="text-[#111827] font-semibold">{sourceScanId || "—"}</code>
             </p>
           </div>
           <button
             onClick={handleClose}
             title="Close (returns to IDE Workspace)"
-            className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg text-[#8e8e9a] hover:text-[#f4f4f8] hover:bg-white/8 transition-colors"
+            className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-[#111827] hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -101,9 +101,9 @@ export default function AgenticExecutionDrawer({
 
         {/* Completion banner */}
         {dismissing && (
-          <div className="shrink-0 px-6 py-3 bg-emerald-500/10 border-b border-emerald-500/20 flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <p className="text-[10.5px] font-mono text-emerald-300 leading-snug">
+          <div className="shrink-0 px-6 py-3 bg-emerald-50 border-b border-emerald-200 flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <p className="text-[10.5px] font-mono text-emerald-800 leading-snug">
               Agentic analysis complete. View AI threat analysis in the Security tab and business impact in
               Business Intent. Closing automatically…
             </p>

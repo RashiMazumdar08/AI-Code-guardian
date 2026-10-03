@@ -517,3 +517,168 @@ class TestCentralisedIntegrations:
             tmp_path, verdict,
             service=NemotronReasoningService(llm=FakeLLM(error=LLMError("503"))))
         assert out.domain == "Banking / FinTech"
+
+
+# ---------------------------------------------------------------------------
+# Per-Scan Token Budget Admission Control Tests
+# ---------------------------------------------------------------------------
+class TestScanTokenAdmissionControl:
+    def test_multiple_agents_cannot_exceed_scan_budget(self):
+        from guardian.reasoning.gateway import get_scan_token_tracker, reset_scan_token_trackers
+
+        reset_scan_token_trackers()
+        tracker = get_scan_token_tracker("scan-limit-test", total_budget=3000)
+
+        # SecurityAgent consumes 1800 tokens
+        ok1, dec1, rem1, res1, cap1 = tracker.admit_request("security", 1800)
+        assert ok1 is True
+        assert dec1 == "EXECUTED"
+
+        # ArchitectureAgent tries to consume 1500 tokens (which exceeds 3000 total budget)
+        ok2, dec2, rem2, res2, cap2 = tracker.admit_request("architecture", 1500)
+        assert ok2 is False
+        assert dec2 == "SKIPPED_BUDGET"
+        assert rem2 == 1200
+
+    def test_business_agent_receives_reserved_budget(self):
+        from guardian.reasoning.gateway import get_scan_token_tracker, reset_scan_token_trackers
+
+        reset_scan_token_trackers()
+        tracker = get_scan_token_tracker("scan-reservation-test", total_budget=6500)
+
+        # SecurityAgent consumes 1800 tokens
+        ok_sec, _, _, _, _ = tracker.admit_request("security", 1800)
+        assert ok_sec is True
+
+        # ArchitectureAgent consumes 1000 tokens
+        ok_arch, _, _, _, _ = tracker.admit_request("architecture", 1000)
+        assert ok_arch is True
+
+        # ThreatSimulationAgent consumes 1000 tokens
+        ok_threat, _, _, _, _ = tracker.admit_request("threat_simulation", 1000)
+        assert ok_threat is True
+
+        # BusinessAgent asks for 735 tokens -> guaranteed by its 1800 reserved slot!
+        ok_bus, dec_bus, rem_bus, res_bus, cap_bus = tracker.admit_request("business", 735)
+        assert ok_bus is True
+        assert dec_bus == "EXECUTED"
+
+    def test_insufficient_budget_produces_skipped_budget_rather_than_rate_limited(self):
+        from guardian.reasoning.gateway import NemotronReasoningService, ReasoningRequest, get_scan_token_tracker, reset_scan_token_trackers
+
+        reset_scan_token_trackers()
+        tracker = get_scan_token_tracker("scan-skip-budget-test", total_budget=1000)
+        # Exhaust unreserved budget
+        tracker.admit_request("security", 1000)
+
+        service = NemotronReasoningService(llm=FakeLLM("{}"))
+        req = ReasoningRequest(
+            task="business_intent",
+            agent="business",
+            scan_id="scan-skip-budget-test",
+            instruction="Semantically evaluate requirements",
+            evidence_block="[E1] snippet",
+            max_tokens=350,
+        )
+        res = service.reason(req)
+        assert res.available is False
+        assert "SKIPPED_BUDGET" in res.error
+        assert "RATE_LIMITED" not in res.error
+
+    def test_deterministic_results_remain_available(self, tmp_path, monkeypatch):
+        from guardian.agents.business.agent import BusinessAgent
+        from guardian.orchestrator.state import create_initial_state
+        from guardian.reasoning.gateway import get_scan_token_tracker, reset_scan_token_trackers
+
+        reset_scan_token_trackers()
+        # Create scan tracker with tiny budget to force SKIPPED_BUDGET
+        get_scan_token_tracker("scan-det-test", total_budget=100)
+
+        fixture_dir = tmp_path / "det_app"
+        fixture_dir.mkdir(parents=True)
+        (fixture_dir / "app.py").write_text("def refund(): pass\n")
+
+        monkeypatch.setenv("LLM_ENABLED", "true")
+        monkeypatch.setenv("LLM_AGENT_BUSINESS_ENABLED", "true")
+        monkeypatch.setenv("XAI_API_KEY", "test_key")
+
+        state = create_initial_state(
+            scan_id="scan-det-test",
+            repository_profile={"repo_path": str(fixture_dir), "frameworks": ["flask"]}
+        )
+        state["business_intent_results"] = {
+            "status": "SUCCESS",
+            "total_rules": 1,
+            "documents": ["policy.md"],
+            "findings": [
+                {
+                    "rule_id": "REQ-101",
+                    "rule": "Refund authorization required",
+                    "status": "PARTIAL",
+                    "score": 0.45,
+                    "matched_action": "refund",
+                    "source_file": "app.py"
+                }
+            ]
+        }
+
+        agent = BusinessAgent()
+        new_state = agent.run(state)
+
+        assert new_state["business_intent_results"]["status"] == "SUCCESS"
+        assert new_state["business_intent_results"].get("grok_status") == "SKIPPED_BUDGET"
+        assert "deterministic policy evaluations are unaffected" in new_state["business_intent_results"].get("agent_reason", "").lower()
+
+    def test_existing_ai_gates_still_work(self, tmp_path, monkeypatch):
+        from guardian.agents.business.agent import BusinessAgent
+        from guardian.orchestrator.state import create_initial_state
+
+        fixture_dir = tmp_path / "gate_app"
+        fixture_dir.mkdir(parents=True)
+        (fixture_dir / "app.py").write_text("def pay(): pass\n")
+
+        monkeypatch.setenv("LLM_ENABLED", "true")
+        monkeypatch.setenv("LLM_AGENT_BUSINESS_ENABLED", "true")
+        monkeypatch.setenv("GROQ_API_KEY", "test_groq_key")
+
+        captured_reqs = []
+
+        class MockGateway:
+            def __init__(self, config):
+                self.configured = True
+                self.model_name = "groq/llama-3.3-70b"
+
+            def reason(self, req):
+                captured_reqs.append(req)
+                from guardian.reasoning.gateway import ReasoningResult
+                return ReasoningResult(available=True)
+
+        monkeypatch.setattr("guardian.reasoning.gateway.ReasoningGateway", MockGateway)
+
+        state = create_initial_state(
+            scan_id="scan-gate-test",
+            repository_profile={"repo_path": str(fixture_dir), "frameworks": ["flask"]}
+        )
+        # High-confidence COMPLIANT policy should be gated out
+        state["business_intent_results"] = {
+            "status": "SUCCESS",
+            "total_rules": 1,
+            "documents": ["policy.md"],
+            "findings": [
+                {
+                    "rule_id": "REQ-100",
+                    "rule": "Payment audit check",
+                    "status": "COMPLIANT",
+                    "score": 0.95,
+                    "matched_action": "pay",
+                    "source_file": "app.py"
+                }
+            ]
+        }
+
+        agent = BusinessAgent()
+        new_state = agent.run(state)
+
+        assert len(captured_reqs) == 0
+        assert new_state["business_intent_results"].get("grok_status") == "SKIPPED"
+

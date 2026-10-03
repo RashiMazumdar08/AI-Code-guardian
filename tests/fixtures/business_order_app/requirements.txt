@@ -1,0 +1,4 @@
+Order cancellation policy:
+1. Orders can only be cancelled prior to shipment. Shipped orders cannot be cancelled directly.
+2. Order cancellations exceeding $500 require manager approval and verification.
+3. All payment refunds must record an immutable audit log.

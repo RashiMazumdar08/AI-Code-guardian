@@ -43,13 +43,13 @@ function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#0c0d11] border border-white/8 hover:border-[#ff5400]/40 hover:bg-[#ff5400]/5 hover:shadow-[0_0_15px_rgba(255,84,0,0.1)] transition-all group flex-1 min-w-[180px]"
+      className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white border border-[#174A85] hover:border-[#BFDBFE] hover:bg-[#EFF6FF] hover:shadow-sm transition-all group flex-1 min-w-[180px]"
     >
-      <div className="w-7 h-7 rounded-lg bg-white/4 group-hover:bg-[#ff5400]/15 flex items-center justify-center transition-colors">
-        <Icon className="w-4 h-4 text-[#8e8e9a] group-hover:text-[#ff5400] transition-colors shrink-0" />
+      <div className="w-8 h-8 rounded-lg bg-[#F8FAFC] group-hover:bg-[#EFF6FF] flex items-center justify-center transition-colors shrink-0">
+        <Icon className="w-5 h-5 text-[#64748B] group-hover:text-[#2563EB] transition-colors" />
       </div>
-      <span className="text-[11px] font-mono font-bold text-[#f4f4f8] group-hover:text-[#ff5400] transition-colors">{label}</span>
-      <ArrowRight className="w-3.5 h-3.5 text-[#5c5c68] ml-auto group-hover:text-[#ff5400] group-hover:translate-x-0.5 transition-all" />
+      <span className="text-sm md:text-base font-semibold text-[#111827] group-hover:text-[#2563EB] transition-colors">{label}</span>
+      <ArrowRight className="w-4 h-4 text-[#94A3B8] ml-auto group-hover:text-[#2563EB] group-hover:translate-x-0.5 transition-all shrink-0" />
     </button>
   );
 }
@@ -99,28 +99,28 @@ export default function DashboardTab({
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="rounded-xl bg-[#12131a] border border-white/10 p-5 flex items-center justify-between flex-wrap gap-3 shadow-lg shadow-black/40">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff5400] to-orange-700 border border-[#ff5400]/40 flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,84,0,0.25)]">
-            <Shield className="w-5 h-5" />
+      <div className="rounded-2xl bg-white border border-slate-200 p-6 flex items-center justify-between flex-wrap gap-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563EB] shadow-xs shrink-0">
+            <Shield className="w-6 h-6 text-[#2563EB]" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-mono font-bold text-[#f4f4f8] tracking-wide uppercase">AI CODE GUARDIAN</h2>
-              <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-white/6 text-[#ff5400] border border-[#ff5400]/30">v2.1.0</span>
+            <div className="flex items-center gap-3">
+              <h1 className="text-[28px] font-bold text-slate-900 tracking-tight leading-tight">AI CODE GUARDIAN</h1>
+              <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563EB] border border-blue-200">v2.1.0</span>
             </div>
-            <p className="text-[10px] font-mono text-[#8e8e9a] mt-0.5">Multi-language, evidence-grounded code analysis platform</p>
+            <p className="text-sm text-slate-600 mt-1 leading-relaxed">Multi-language, evidence-grounded code analysis platform</p>
           </div>
         </div>
       </div>
 
       {/* Quick actions */}
-      <div className="space-y-2">
-        <div className="text-[9px] font-mono font-semibold text-[#8e8e9a]/80 uppercase tracking-[0.2em] flex items-center gap-1.5">
-          <Activity className="w-3 h-3 text-[#ff5400]" />
-          <span>Quick Actions</span>
+      <div className="space-y-3">
+        <div className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
+          <Activity className="w-4 h-4 text-[#2563EB]" />
+          <span className="text-base font-semibold text-slate-900">Quick Actions</span>
         </div>
         <div className="flex flex-wrap gap-3">
           <QuickAction icon={Code2} label="Start New Scan" onClick={() => navigateTo("workspace")} />
@@ -130,80 +130,80 @@ export default function DashboardTab({
       </div>
 
       {/* Latest deterministic scan */}
-      <div className="rounded-xl bg-[#12131a] border border-white/10 p-5 space-y-4 shadow-md">
-        <div className="text-[9px] font-mono font-semibold text-[#8e8e9a]/80 uppercase tracking-[0.2em] flex items-center justify-between">
-          <span className="flex items-center gap-1.5">
-            <ScanLine className="w-3 h-3 text-[#ff5400]" />
+      <div className="rounded-2xl bg-white border border-slate-200 p-6 space-y-4 shadow-sm">
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+          <span className="flex items-center gap-2 text-base font-semibold text-slate-900 normal-case">
+            <ScanLine className="w-5 h-5 text-[#2563EB]" />
             <span>Latest Deterministic Scan</span>
           </span>
           {latestScan && (
-            <span className="text-[9px] font-mono text-[#8e8e9a]">
+            <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
               ID: {latestScan.scan_id}
             </span>
           )}
         </div>
         {!latestScan ? (
-          <p className="text-[10.5px] font-mono text-[#5c5c68]">No scans yet — start one from IDE Workspace.</p>
+          <p className="text-sm md:text-base font-normal text-slate-600">No scans yet — start one from IDE Workspace.</p>
         ) : (
           <>
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2 text-xs font-mono text-[#f4f4f8]">
-                <ScanLine className="w-3.5 h-3.5 text-[#ff5400]" />
-                <span className="font-bold text-sm text-[#f4f4f8]">{latestScan.target || latestScan.scan_id}</span>
-                <span className="text-[#8e8e9a] bg-white/5 px-2 py-0.5 rounded text-[10px]">
+              <div className="flex items-center gap-2 text-sm text-slate-900">
+                <ScanLine className="w-4 h-4 text-[#2563EB]" />
+                <span className="font-semibold text-base text-slate-900">{latestScan.target || latestScan.scan_id}</span>
+                <span className="text-xs font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
                   {latestScan.scan?.total_findings ?? 0} findings
                 </span>
               </div>
               <button
                 onClick={() => navigateTo("workspace")}
-                className="text-[10px] font-mono font-bold text-[#ff5400] hover:text-[#ff7430] flex items-center gap-1 transition"
+                className="text-sm font-semibold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1 transition"
               >
-                View in IDE Workspace <ArrowRight className="w-3 h-3" />
+                View in IDE Workspace <ArrowRight className="w-4 h-4" />
               </button>
             </div>
 
             {/* Severity Breakdown Badges */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
               {[
-                { sev: "Critical", count: bySeverity["Critical"] ?? bySeverity["CRITICAL"] ?? 0, color: "text-red-400 bg-red-500/10 border-red-500/25" },
-                { sev: "High", count: bySeverity["High"] ?? bySeverity["HIGH"] ?? 0, color: "text-[#ff5400] bg-[#ff5400]/10 border-[#ff5400]/25" },
-                { sev: "Medium", count: bySeverity["Medium"] ?? bySeverity["MEDIUM"] ?? 0, color: "text-amber-400 bg-amber-500/10 border-amber-500/25" },
-                { sev: "Low", count: bySeverity["Low"] ?? bySeverity["LOW"] ?? 0, color: "text-sky-400 bg-sky-500/10 border-sky-500/25" },
+                { sev: "Critical", count: bySeverity["Critical"] ?? bySeverity["CRITICAL"] ?? 0, color: "text-red-700 bg-red-50 border-red-200" },
+                { sev: "High", count: bySeverity["High"] ?? bySeverity["HIGH"] ?? 0, color: "text-orange-700 bg-orange-50 border-orange-200" },
+                { sev: "Medium", count: bySeverity["Medium"] ?? bySeverity["MEDIUM"] ?? 0, color: "text-amber-700 bg-amber-50 border-amber-200" },
+                { sev: "Low", count: bySeverity["Low"] ?? bySeverity["LOW"] ?? 0, color: "text-blue-700 bg-blue-50 border-blue-200" },
               ].map(({ sev, count, color }) => (
-                <div key={sev} className={`px-3 py-2 rounded-lg border flex items-center justify-between font-mono text-[10.5px] ${color}`}>
+                <div key={sev} className={`px-3.5 py-2.5 rounded-lg border flex items-center justify-between text-xs font-medium ${color}`}>
                   <span className="font-semibold uppercase tracking-wider">{sev}</span>
-                  <b className="text-xs">{count}</b>
+                  <b className="text-sm font-bold">{count}</b>
                 </div>
               ))}
             </div>
 
-            <div className="pt-3 border-t border-white/8">
+            <div className="pt-3 border-t border-slate-200">
               {agenticWorkflowStatus === "running" || agenticWorkflowStatus === "starting" ? (
-                <div className="flex items-center gap-2 text-[10.5px] font-mono text-violet-300 bg-violet-500/10 p-2.5 rounded-lg border border-violet-500/20">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Agentic analysis running…
+                <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 p-3 rounded-lg border border-blue-200 font-medium">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Agentic analysis running…
                 </div>
               ) : agenticMatchesCurrentScan && agenticWorkflowStatus === "completed" ? (
-                <div className="flex items-center justify-between flex-wrap gap-2 bg-emerald-500/8 p-2.5 rounded-lg border border-emerald-500/20">
-                  <div className="flex items-center gap-2 text-[10.5px] font-mono text-emerald-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span className="font-bold">Agentic Status: Complete</span>
+                <div className="flex items-center justify-between flex-wrap gap-2 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                  <div className="flex items-center gap-2 text-sm text-emerald-700 font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="font-semibold">Agentic Status: Complete</span>
                     {typeof agenticSummary?.correlated_risks === "number" && (
-                      <span className="text-[#8e8e9a]">· {agenticSummary.correlated_risks} correlated risks</span>
+                      <span className="text-slate-600">· {agenticSummary.correlated_risks} correlated risks</span>
                     )}
                   </div>
                   <button
                     onClick={() => navigateTo("security_compliance")}
-                    className="text-[10px] font-mono font-bold text-violet-300 hover:text-violet-200 flex items-center gap-1 transition"
+                    className="text-sm font-semibold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1 transition"
                   >
-                    View AI Results in Security Tab <ArrowRight className="w-3 h-3" />
+                    View AI Results in Security Tab <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={onRunAgentic}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[10.5px] font-mono font-bold uppercase tracking-wide bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 transition-all shadow-[0_0_10px_rgba(139,92,246,0.15)]"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold uppercase tracking-wide bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] hover:bg-[#DBEAFE] transition-all shadow-sm"
                 >
-                  <Play className="w-3.5 h-3.5 fill-current" /> Run Agentic Analysis
+                  <Play className="w-4 h-4 fill-current" /> Run Agentic Analysis
                 </button>
               )}
             </div>
@@ -212,28 +212,28 @@ export default function DashboardTab({
       </div>
 
       {/* Agentic run history */}
-      <div className="rounded-xl bg-[#12131a] border border-white/10 p-5 space-y-3 shadow-md">
-        <div className="text-[9px] font-mono font-semibold text-[#8e8e9a]/80 uppercase tracking-[0.2em] flex items-center gap-1.5">
-          <Sparkles className="w-3 h-3 text-violet-400" />
+      <div className="rounded-2xl bg-white border border-slate-200 p-6 space-y-4 shadow-sm">
+        <div className="text-base font-semibold text-slate-900 flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-[#2563EB]" />
           <span>Agentic Run History</span>
         </div>
         {loading ? (
-          <p className="text-[10.5px] font-mono text-[#5c5c68]">Loading…</p>
+          <p className="text-sm text-slate-400">Loading…</p>
         ) : recentAgenticRuns.length === 0 ? (
-          <p className="text-[10.5px] font-mono text-[#5c5c68]">No agentic runs yet.</p>
+          <p className="text-sm md:text-base font-normal text-slate-600">No agentic runs yet.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {recentAgenticRuns.map((r) => (
-              <div key={r.scan_id} className="flex items-center justify-between gap-3 text-[10.5px] font-mono px-3.5 py-2.5 rounded-lg bg-[#0c0d11] border border-white/8 hover:border-white/15 transition flex-wrap">
-                <span className="text-[#8e8e9a] font-semibold">{formatTimestamp(r.started_at)}</span>
-                <span className={`font-bold uppercase px-2 py-0.5 rounded text-[9px] ${
-                  r.status === "completed" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" :
-                  r.status === "error" ? "bg-red-500/15 text-red-400 border border-red-500/30" :
-                  r.status === "cancelled" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" :
-                  "bg-white/5 text-[#8e8e9a]"
+              <div key={r.scan_id} className="flex items-center justify-between gap-3 text-sm px-4 py-3 rounded-xl bg-[#F8FAFC] border border-slate-200 hover:border-blue-200 transition flex-wrap">
+                <span className="text-slate-700 font-medium">{formatTimestamp(r.started_at)}</span>
+                <span className={`font-semibold uppercase px-2.5 py-0.5 rounded text-xs ${
+                  r.status === "completed" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                  r.status === "error" ? "bg-red-50 text-red-700 border border-red-200" :
+                  r.status === "cancelled" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                  "bg-slate-100 text-slate-700 border border-slate-200"
                 }`}>{r.status}</span>
-                <span className="text-[#8e8e9a]">{r.agentic_summary?.validated_patches ?? 0} validated patch{(r.agentic_summary?.validated_patches ?? 0) === 1 ? "" : "es"}</span>
-                <span className="text-[#8e8e9a]">{r.agentic_summary?.correlated_risks ?? 0} correlated</span>
+                <span className="text-slate-600">{r.agentic_summary?.validated_patches ?? 0} validated patch{(r.agentic_summary?.validated_patches ?? 0) === 1 ? "" : "es"}</span>
+                <span className="text-slate-600">{r.agentic_summary?.correlated_risks ?? 0} correlated</span>
               </div>
             ))}
           </div>
@@ -241,24 +241,24 @@ export default function DashboardTab({
       </div>
 
       {/* Platform stats */}
-      <div className="rounded-xl bg-[#12131a] border border-white/10 p-5 shadow-md">
-        <div className="text-[9px] font-mono font-semibold text-[#8e8e9a]/80 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5">
-          <Layers className="w-3 h-3 text-sky-400" />
+      <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="text-base font-semibold text-slate-900 flex items-center gap-2">
+          <Layers className="w-5 h-5 text-[#2563EB]" />
           <span>Platform Stats</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { icon: Layers, label: "Total Scans", value: scans.length, color: "text-sky-400" },
-            { icon: Sparkles, label: "Agentic Runs", value: agenticRuns.length, color: "text-violet-400" },
-            { icon: ShieldCheck, label: "Validated Patches", value: totalValidatedPatches, color: "text-emerald-400" },
+            { icon: Layers, label: "Total Scans", value: scans.length, color: "text-[#2563EB]" },
+            { icon: Sparkles, label: "Agentic Runs", value: agenticRuns.length, color: "text-[#2563EB]" },
+            { icon: ShieldCheck, label: "Validated Patches", value: totalValidatedPatches, color: "text-emerald-600" },
           ].map((s) => (
-            <div key={s.label} className="p-3.5 rounded-lg bg-[#0c0d11] border border-white/8 hover:border-white/15 transition flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white/4 flex items-center justify-center shrink-0">
-                <s.icon className={`w-4 h-4 ${s.color}`} />
+            <div key={s.label} className="p-4 rounded-xl bg-[#F8FAFC] border border-slate-200 hover:border-blue-200 transition flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center shrink-0 border border-slate-200 shadow-xs">
+                <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
               <div>
-                <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a]">{s.label}</div>
-                <div className="text-base font-mono font-bold text-[#f4f4f8]">{s.value}</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">{s.label}</div>
+                <div className="text-3xl font-bold text-slate-900 mt-0.5">{s.value}</div>
               </div>
             </div>
           ))}
@@ -267,4 +267,3 @@ export default function DashboardTab({
     </div>
   );
 }
-

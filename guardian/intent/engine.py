@@ -26,16 +26,17 @@ log = logging.getLogger(__name__)
 class BusinessIntentEngine:
     """Production-Grade Business Intent Engine."""
 
-    def __init__(self, docs_dir: str | Path | None = None):
-        self.loader = DocumentLoader(docs_dir)
+    def __init__(self, docs_dir: str | Path | None = None, workspace_id: str | None = None, use_llm: bool = False):
+        self.loader = DocumentLoader(docs_dir, workspace_id=workspace_id)
         self.parser = RuleParser()
         self.matcher = RuleMatcher()
         self.scorer = AlignmentScorer()
+        self.use_llm = use_llm
 
-    def run(self, scan_findings: list[dict[str, Any]] | None = None, docs_dir: str | Path | None = None) -> dict[str, Any]:
+    def run(self, scan_findings: list[dict[str, Any]] | None = None, docs_dir: str | Path | None = None, workspace_id: str | None = None) -> dict[str, Any]:
         """Run intent analysis workflow."""
-        if docs_dir:
-            self.loader = DocumentLoader(docs_dir)
+        if docs_dir or workspace_id:
+            self.loader = DocumentLoader(docs_dir, workspace_id=workspace_id)
 
         docs = self.loader.list_documents()
 

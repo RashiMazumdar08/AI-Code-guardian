@@ -131,14 +131,14 @@ export default function ScanProgressPanel({ scanId, apiBase, isScanning }: ScanP
   const isError = status?.status === "error";
 
   return (
-    <div className="h-full bg-[#0c0d11] border-r border-white/8 flex flex-col p-4 overflow-y-auto">
-      <div className="flex items-center gap-2 pb-4 border-b border-white/8 mb-4">
+    <div className="h-full bg-white border-r border-slate-200 flex flex-col p-4 overflow-y-auto">
+      <div className="flex items-center gap-2 pb-4 border-b border-slate-200 mb-4">
         {isError ? (
-          <Circle className="w-4 h-4 text-red-500 shrink-0" />
+          <Circle className="w-4 h-4 text-red-600 shrink-0" />
         ) : (
-          <Loader2 className="w-4 h-4 text-[#ff5400] animate-spin shrink-0" />
+          <Loader2 className="w-4 h-4 text-[#2563EB] animate-spin shrink-0" />
         )}
-        <span className={`text-xs font-mono font-bold tracking-wider ${isError ? "text-red-400" : "text-[#f4f4f8]"}`}>
+        <span className={`text-[13px] font-sans font-semibold tracking-[0.04em] leading-[1.4] ${isError ? "text-red-600" : "text-slate-900"}`}>
           {isError ? "SCAN FAILED" : "SCAN IN PROGRESS"}
         </span>
       </div>
@@ -154,37 +154,37 @@ export default function ScanProgressPanel({ scanId, apiBase, isScanning }: ScanP
               key={s.id}
               className={`flex items-start gap-3 p-2.5 rounded-lg border transition-all ${
                 isRunning
-                  ? "bg-[#ff5400]/10 border-[#ff5400]/30 text-[#f4f4f8]"
+                  ? "bg-[#EFF6FF] border-[#BFDBFE] text-slate-900"
                   : isDone
-                  ? "bg-emerald-500/5 border-emerald-500/20 text-[#f4f4f8]"
-                  : "bg-white/[0.02] border-white/5 text-[#8e8e9a]/50"
+                  ? "bg-emerald-50 border-emerald-200 text-slate-900"
+                  : "bg-[#F8FAFC] border-slate-200 text-slate-400"
               }`}
             >
               <div className="mt-0.5 shrink-0">
                 {isDone ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 ) : isRunning ? (
-                  <Loader2 className="w-4 h-4 text-[#ff5400] animate-spin" />
+                  <Loader2 className="w-4 h-4 text-[#2563EB] animate-spin" />
                 ) : (
-                  <Circle className="w-4 h-4 text-[#8e8e9a]/30" />
+                  <Circle className="w-4 h-4 text-slate-300" />
                 )}
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span
-                    className={`text-xs font-mono font-semibold truncate ${
+                    className={`text-[14px] font-sans font-semibold leading-[1.4] truncate ${
                       isRunning
-                        ? "text-[#ff5400]"
+                        ? "text-[#2563EB]"
                         : isDone
-                        ? "text-emerald-400"
-                        : "text-[#8e8e9a]/60"
+                        ? "text-emerald-700"
+                        : "text-[#64748B]"
                     }`}
                   >
                     {s.label}
                   </span>
                 </div>
-                <p className="text-[11px] font-mono text-[#8e8e9a] mt-0.5 truncate">
+                <p className="text-[13px] font-sans font-normal leading-[1.4] text-[#64748B] mt-0.5 truncate">
                   {s.getDescription(isDone, isRunning)}
                 </p>
               </div>

@@ -45,6 +45,9 @@ class SecurityContext(TypedDict, total=False):
     secret_findings_count: int
     iac_findings_count: int
     quantum_findings_count: int
+    grok_status: Optional[str]
+    agent_reason: Optional[str]
+
 
 
 class ArchitectureContext(TypedDict, total=False):
@@ -56,6 +59,8 @@ class ArchitectureContext(TypedDict, total=False):
     external_integrations: List[str]
     trust_boundaries: List[str]
     critical_components: List[str]
+    grok_status: Optional[str]
+    agent_reason: Optional[str]
 
 
 class DependencyContext(TypedDict, total=False):
@@ -67,6 +72,8 @@ class DependencyContext(TypedDict, total=False):
     manifest_files: List[str]
     detected_libraries: List[Dict[str, Any]]
     cve_list: List[str]
+    grok_status: Optional[str]
+    agent_reason: Optional[str]
 
 
 class ThreatContext(TypedDict, total=False):

@@ -21,11 +21,17 @@ from guardian.orchestrator.tools import ToolRegistry
 
 
 
-_nim_semaphore = asyncio.Semaphore(2)
+from guardian.llm.rate_limit_handler import is_rate_limit_error, format_rate_limit_warning
+
+
+_nim_semaphore = asyncio.Semaphore(5)
+
 
 def _is_retryable_error(exception: Exception) -> bool:
+    if is_rate_limit_error(exception):
+        return False
     err_str = str(exception).lower()
-    return "resourceexhausted" in err_str or "limit reached" in err_str or "connection" in err_str or "timeout" in err_str or "500" in err_str or "502" in err_str or "503" in err_str or "504" in err_str or "429" in err_str
+    return "connection" in err_str or "timeout" in err_str or "500" in err_str or "502" in err_str or "503" in err_str or "504" in err_str
 
 
 class InteractiveChatAgent:
@@ -130,25 +136,47 @@ class InteractiveChatAgent:
         return [hybrid_search, semantic_search, repository_graph_query, fetch_evidence, get_scan_findings, get_scan_patches]
 
     @retry(
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        stop=stop_after_attempt(15),
+        wait=wait_exponential(multiplier=1, min=1, max=4),
+        stop=stop_after_attempt(3),
         retry=retry_if_exception(_is_retryable_error)
     )
+
     async def _safe_ainvoke(self, messages, config):
         async with _nim_semaphore:
             return await self.llm_with_tools.ainvoke(messages, config=config)
 
     async def run(self, state: AgentWorkflowState, config: Any = None) -> AgentWorkflowState:
         """Executes one turn of the chat loop."""
+        if not self.config.is_agent_enabled("chat"):
+            from langchain_core.messages import AIMessage
+            return {"messages": [AIMessage(content="AI Chat reasoning is disabled or XAI_API_KEY/NVIDIA_API_KEY is not configured.")]}
+
         self._current_state = state
         messages = state.get("messages", [])
-        
+
         # Prepend system prompt if not present
         if not messages or not any(isinstance(m, SystemMessage) for m in messages):
             findings_count = len(state.get("findings", []))
             patches_count = len(state.get("patches", []))
             sys_prompt = self.system_prompt + f"\n\nCURRENT REPOSITORY SCAN RESULTS:\n- Total Findings: {findings_count}\n- Total Patches: {patches_count}\nUse the `get_scan_findings` and `get_scan_patches` tools to view them."
             messages = [SystemMessage(content=sys_prompt)] + messages
-            
-        response = await self._safe_ainvoke(messages, config)
-        return {"messages": [response]}
+
+        try:
+            response = await self._safe_ainvoke(messages, config)
+            return {"messages": [response]}
+        except Exception as exc:
+            from langchain_core.messages import AIMessage
+            if is_rate_limit_error(exc):
+                user_q = ""
+                for m in reversed(messages):
+                    m_type = getattr(m, "type", "")
+                    if m_type == "user":
+                        user_q = str(m.content)
+                        break
+                    elif isinstance(m, dict) and m.get("role") == "user":
+                        user_q = str(m.get("content", ""))
+                        break
+                msg_text = format_rate_limit_warning(exc, user_query=user_q, state=state)
+                return {"messages": [AIMessage(content=msg_text)]}
+            return {"messages": [AIMessage(content=f"Chat reasoning notice: {exc}")]}
+

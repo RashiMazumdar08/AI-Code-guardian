@@ -3,19 +3,28 @@
 import React from "react";
 import { Handle, Position } from "@xyflow/react";
 import { Box } from "lucide-react";
-import { MindMapNodeData } from "../types";
+import { MindMapNodeData, getNodeSeverityStyle } from "../types";
 
-export const ClassNode = ({ data }: { data: MindMapNodeData }) => {
+export const ClassNode = ({ data, selected }: { data: MindMapNodeData; selected?: boolean }) => {
+  const style = getNodeSeverityStyle(data, "class", selected);
+
   return (
-    <div className="glass-card p-2.5 rounded-lg border border-emerald-500/30 min-w-[150px] shadow-sm hover:border-emerald-400/60 transition">
-      <Handle type="target" position={Position.Top} className="!bg-emerald-400 !w-2 !h-2" />
+    <div className={`p-2.5 rounded-xl min-w-[150px] transition-all cursor-pointer ${style.containerClass}`}>
+      <Handle type="target" position={Position.Top} className="!bg-[#0070F2] !w-2 !h-2 !border-0" />
 
-      <div className="flex items-center gap-2">
-        <Box className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-        <span className="text-xs font-semibold text-slate-200 truncate">{data.label}</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Box className="w-3.5 h-3.5 text-[#0064D8] shrink-0" />
+          <span className="text-xs font-bold text-[#0B1F33] truncate">{data.label}</span>
+        </div>
+        {style.isAffected && style.severity && (
+          <span className={`text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 rounded ${style.badgeClass}`}>
+            {style.severity}
+          </span>
+        )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-emerald-400 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!bg-[#0070F2] !w-2 !h-2 !border-0" />
     </div>
   );
 };

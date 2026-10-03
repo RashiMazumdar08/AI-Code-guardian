@@ -154,6 +154,12 @@ class BusinessIntentEngine(BaseEngine):
     # ------------------------------------------------------------------
     def analyze(self, context: AnalysisContext) -> EngineResult:
         sources = list(context.business_requirements)
+        if not sources and hasattr(context, "repository") and context.repository and hasattr(context.repository, "root"):
+            from guardian.intent.ingestion.document_loader import get_business_docs_dir, DocumentLoader
+            docs_dir = get_business_docs_dir(workspace_id=context.repository.root)
+            loader = DocumentLoader(docs_dir=docs_dir)
+            sources = [Path(d["path"]) for d in loader.list_documents()]
+
         if not sources:
             return EngineResult(output={
                 "status": "no_requirements",

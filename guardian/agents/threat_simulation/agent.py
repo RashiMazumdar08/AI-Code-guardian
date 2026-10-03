@@ -29,6 +29,28 @@ class ThreatSimulationAgent(BaseAgent):
         arch_ctx = state.get("architecture_context", {})
         biz_ctx = state.get("business_context", {})
 
+        # Threat Gate: Skip expensive Threat Simulation if no attack paths or security-relevant conditions exist
+        if not findings and not evidence and not repo_ctx.get("entry_points"):
+            self.logger.info("Threat Gate: Skipping Threat Simulation (no attack paths or security conditions found)")
+            threat_ctx: ThreatContext = {
+                "status": "SKIPPED_NO_ATTACK_PATHS",
+                "skipped": True,
+                "reason": "No security findings or entry point attack paths identified in repository context.",
+                "exploitability": 0.0,
+                "reachability": 0.0,
+                "attack_paths": [],
+                "privilege_escalation_risk": "LOW",
+                "lateral_movement_risk": "LOW",
+                "auth_bypass_risk": "LOW",
+                "data_exposure_risk": "LOW",
+                "business_impact": "LOW",
+            }
+            new_state = dict(state)
+            new_state["threat_context"] = dict(threat_ctx)
+            new_state["attack_paths"] = []
+            new_state["exploitability"] = 0.0
+            return new_state
+
         attack_paths: List[Dict[str, Any]] = []
         max_exploitability = 0.0
 
@@ -106,6 +128,51 @@ class ThreatSimulationAgent(BaseAgent):
         has_auth_bypass = any("auth" in f.get("rule_id", "").lower() for f in findings)
         has_secret_exposure = any("secret" in f.get("rule_id", "").lower() for f in findings)
 
+        # Optional Grok AI reasoning pass for multi-step attack scenario correlation
+        ai_threat_insights = []
+        try:
+            from guardian.llm.config import LLMConfig
+            cfg = LLMConfig.from_env()
+            if cfg.is_agent_enabled("threat_simulation"):
+                should_call_grok = len(attack_paths) > 0 or has_auth_bypass or has_secret_exposure
+                if should_call_grok:
+                    from guardian.reasoning.gateway import ReasoningGateway, ReasoningRequest
+                    service = ReasoningGateway(config=cfg)
+                    if service.configured:
+                        path_lines = []
+                        for i, p in enumerate(attack_paths[:5]):
+                            path_lines.append(
+                                f"[E{i+1}] Finding: {p.get('finding_id')} | Entry: {p.get('entry_point')} | Target: {p.get('target_file')} | "
+                                f"Reachability: {p.get('reachability')} ({p.get('exploitability_basis', '')}) | Vector: {p.get('attack_vector')} | "
+                                f"Scenario: {p.get('exploit_scenario', '') or 'unrestricted route'}"
+                            )
+                        if not path_lines:
+                            path_lines.append(
+                                f"[E1] General system entry points | Public APIs: {repo_ctx.get('public_apis', [])} | "
+                                f"Auth Bypass Risk: {has_auth_bypass} | Secret Exposure: {has_secret_exposure}"
+                            )
+
+                        path_summary = "\n".join(path_lines)
+
+                        req = ReasoningRequest(
+                            task="threat_reasoning",
+                            agent="threat_simulation",
+                            scan_id=state.get("scan_id", ""),
+                            instruction=(
+                                "Evaluate the attack paths, entry points, and findings. Reason about realistic multi-step exploitation chains, "
+                                "privilege escalation, trust boundary crossings, and chained vulnerability risks. Cite evidence IDs."
+                            ),
+                            evidence_block=path_summary,
+                            max_tokens=350,
+                        )
+                        ai_res = service.reason(req)
+                        if ai_res.ok and ai_res.findings:
+                            for rf in ai_res.findings:
+                                ai_threat_insights.append(rf.to_dict())
+                            self.logger.info("Grok AI threat reasoning produced %d insight(s)", len(ai_res.findings))
+        except Exception as exc:
+            self.logger.warning("Optional Grok AI threat reasoning notice: %s", exc)
+
         threat_ctx: ThreatContext = {
             "exploitability": max_exploitability,
             "reachability": 0.90 if any(p["reachability"] == "DIRECT" for p in attack_paths) else 0.60,
@@ -121,4 +188,7 @@ class ThreatSimulationAgent(BaseAgent):
         new_state["threat_context"] = dict(threat_ctx)
         new_state["attack_paths"] = attack_paths
         new_state["exploitability"] = max_exploitability
+        if ai_threat_insights:
+            new_state["ai_threat_insights"] = ai_threat_insights
         return new_state
+

@@ -67,19 +67,96 @@ export const CodeMindMap: React.FC<CodeMindMapProps> = ({ data = { nodes: [], ed
     }));
   }, [data.nodes, collapsedNodes, handleToggleCollapse]);
 
+  // Compute node severity map for edges and stats
+  const nodeSeverityMap = useMemo(() => {
+    const map: Record<string, "critical" | "high" | "medium" | "low" | null> = {};
+    (data.nodes || []).forEach((n) => {
+      let sev: "critical" | "high" | "medium" | "low" | null = null;
+      if (n.type === "finding" || n.data.severity) {
+        sev = (n.data.severity || "high").toLowerCase() as any;
+      } else if (Array.isArray(n.data.findings) && n.data.findings.length > 0) {
+        let highest: "critical" | "high" | "medium" | "low" = "low";
+        for (const f of n.data.findings) {
+          const s = (f.severity || "").toLowerCase();
+          if (s === "critical") { highest = "critical"; break; }
+          if (s === "high") highest = "high";
+          else if (s === "medium" && highest !== "high") highest = "medium";
+        }
+        sev = highest;
+      } else if (typeof n.data.riskScore === "number" && n.data.riskScore > 0) {
+        if (n.data.riskScore >= 80) sev = "critical";
+        else if (n.data.riskScore >= 50) sev = "high";
+        else if (n.data.riskScore >= 20) sev = "medium";
+        else sev = "low";
+      }
+      map[n.id] = sev;
+    });
+    return map;
+  }, [data.nodes]);
+
+  // Dynamic summary counts from actual data
+  const summaryStats = useMemo(() => {
+    let critical = 0;
+    let high = 0;
+    let medium = 0;
+    let low = 0;
+    let totalFindings = 0;
+
+    (data.nodes || []).forEach((n) => {
+      if (n.type === "finding") {
+        totalFindings++;
+        const s = (n.data.severity || "high").toLowerCase();
+        if (s === "critical") critical++;
+        else if (s === "high") high++;
+        else if (s === "medium") medium++;
+        else low++;
+      } else if (Array.isArray(n.data.findings)) {
+        totalFindings += n.data.findings.length;
+        n.data.findings.forEach((f: any) => {
+          const s = (f.severity || "").toLowerCase();
+          if (s === "critical") critical++;
+          else if (s === "high") high++;
+          else if (s === "medium") medium++;
+          else low++;
+        });
+      }
+    });
+
+    return { totalFindings, critical, high, medium, low };
+  }, [data.nodes]);
+
   const rawEdges: Edge[] = useMemo(() => {
-    return (data.edges || []).map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      label: e.label,
-      animated: e.type === "call" || e.type === "dependency",
-      style: {
-        stroke: e.type === "dependency" ? "#ef4444" : e.type === "call" ? "#3b82f6" : "#475569",
-        strokeWidth: 1.5,
-      },
-    }));
-  }, [data.edges]);
+    return (data.edges || []).map((e) => {
+      const targetSev = nodeSeverityMap[e.target] || nodeSeverityMap[e.source];
+      const isAffected = targetSev !== null;
+
+      let stroke = "#94A3B8";
+      let strokeWidth = 1.5;
+
+      if (isAffected) {
+        strokeWidth = 2;
+        switch (targetSev) {
+          case "critical": stroke = "#C62828"; break;
+          case "high": stroke = "#E76500"; break;
+          case "medium": stroke = "#E5A11A"; break;
+          case "low":
+          default: stroke = "#2563EB"; break;
+        }
+      }
+
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        label: e.label,
+        animated: isAffected,
+        style: {
+          stroke,
+          strokeWidth,
+        },
+      };
+    });
+  }, [data.edges, nodeSeverityMap]);
 
   // Compute filtered nodes & edges
   const { visibleNodes, visibleEdges } = useMemo(() => {
@@ -148,15 +225,15 @@ export const CodeMindMap: React.FC<CodeMindMapProps> = ({ data = { nodes: [], ed
 
   if (isLoading) {
     return (
-      <div className="w-full h-[650px] glass-panel rounded-2xl flex flex-col items-center justify-center text-blue-400 gap-3 border border-slate-800">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        <span className="text-sm font-semibold tracking-wide text-slate-300">Building Unified AST Mind Map...</span>
+      <div className="w-full h-[650px] bg-[#062B5C] rounded-2xl flex flex-col items-center justify-center text-[#0064D8] gap-3 border border-[#174A85]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#0070F2]" />
+        <span className="text-sm font-semibold tracking-wide text-[#B8CCE2]">Building Unified AST Mind Map...</span>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-[680px] glass-panel rounded-2xl overflow-hidden shadow-xl border border-slate-800">
+    <div className="relative w-full h-[680px] bg-[#062B5C] rounded-2xl overflow-hidden shadow-xl border border-[#174A85]">
       
       {/* React Flow Component */}
       <ReactFlow
@@ -167,11 +244,12 @@ export const CodeMindMap: React.FC<CodeMindMapProps> = ({ data = { nodes: [], ed
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
         fitView
+        colorMode="dark"
         attributionPosition="bottom-left"
-        className="bg-transparent"
+        className="!bg-[#041F42]"
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(255, 255, 255, 0.08)" />
-        <Controls className="!bg-slate-900/90 !border-slate-800 !text-slate-300 !rounded-xl !p-1 backdrop-blur-md shadow-md" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(255, 255, 255, 0.22)" />
+        <Controls className="!bg-[#0F172A] !border !border-slate-700 !text-white !rounded-xl !p-1 backdrop-blur-md shadow-md [&>button]:!bg-[#1E293B] [&>button]:!border-slate-700 [&>button]:!text-white [&>button:hover]:!bg-[#2563EB]" />
         <MiniMap
           position="bottom-right"
           zoomable
@@ -179,27 +257,27 @@ export const CodeMindMap: React.FC<CodeMindMapProps> = ({ data = { nodes: [], ed
           style={{
             width: 200,
             height: 135,
-            backgroundColor: "rgba(15, 23, 42, 0.9)",
+            backgroundColor: "#0F172A",
             borderRadius: "12px",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
+            border: "1px solid #334155",
             boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
           }}
-          maskColor="rgba(15, 23, 42, 0.75)"
-          nodeStrokeColor="#3b82f6"
-          nodeStrokeWidth={1.5}
+          maskColor="rgba(15, 23, 42, 0.85)"
+          nodeStrokeColor="#FFFFFF"
+          nodeStrokeWidth={2}
           nodeColor={(node) => {
             switch (node.type) {
-              case "folder": return "#3b82f6";
-              case "file": return "#64748b";
+              case "folder": return "#2563EB";
+              case "file": return "#FFFFFF";
               case "function": return "#818cf8";
               case "finding": return "#ef4444";
-              default: return "#94a3b8";
+              default: return "#FFFFFF";
             }
           }}
         />
 
         {/* Top Control Bar Panel */}
-        <Panel position="top-left" className="flex flex-wrap items-center gap-3 glass-panel p-3 rounded-2xl border border-cyan-500/30 m-3 z-10">
+        <Panel position="top-left" className="flex flex-wrap items-center gap-3 bg-[#0F172A]/90 p-3 rounded-2xl border border-slate-700 m-3 z-10 shadow-lg">
           
           {/* Search Input */}
           <div className="relative flex items-center">
@@ -209,7 +287,7 @@ export const CodeMindMap: React.FC<CodeMindMapProps> = ({ data = { nodes: [], ed
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search AST nodes or paths..."
-              className="glass-input pl-8 pr-3 py-1.5 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none w-56"
+              className="bg-[#1E293B] border border-slate-700 pl-8 pr-3 py-1.5 rounded-xl text-xs text-white placeholder:text-slate-400 focus:outline-none focus:border-[#2563EB] w-56"
             />
           </div>
 
@@ -227,8 +305,8 @@ export const CodeMindMap: React.FC<CodeMindMapProps> = ({ data = { nodes: [], ed
                 onClick={() => setTypeFilter(filter.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
                   typeFilter === filter.id
-                    ? "glass-button text-white"
-                    : "glass-card text-slate-400 hover:text-slate-200"
+                    ? "bg-[#2563EB] text-white font-bold"
+                    : "bg-[#1E293B] text-slate-300 hover:text-white border border-slate-700"
                 }`}
               >
                 {filter.icon && <filter.icon className="w-3 h-3" />}
@@ -240,12 +318,46 @@ export const CodeMindMap: React.FC<CodeMindMapProps> = ({ data = { nodes: [], ed
           {/* Layout Switcher */}
           <button
             onClick={() => setLayoutDirection((prev) => (prev === "TB" ? "LR" : "TB"))}
-            className="glass-card hover:bg-white/10 text-slate-300 text-xs px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-1.5"
+            className="bg-[#1E293B] hover:bg-[#2563EB] text-white border border-slate-700 text-xs px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-1.5"
             title="Toggle Top-Down / Left-Right Layout"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+            <RefreshCw className="w-3.5 h-3.5 text-[#38BDF8]" />
             Layout: {layoutDirection === "TB" ? "Vertical" : "Horizontal"}
           </button>
+
+          {/* Legend & Real Summary Strip */}
+          <div className="flex flex-wrap items-center gap-2.5 text-[9.5px] font-mono border-t border-slate-700 pt-2 mt-1 w-full text-white">
+            {/* Legend Items */}
+            <div className="flex items-center gap-2 pr-2 border-r border-slate-700">
+              <span className="flex items-center gap-1 text-[#B8CCE2]">
+                <span className="w-2 h-2 rounded-full bg-white border border-[#CBD5E1]" /> Unaffected
+              </span>
+              <span className="flex items-center gap-1 text-[#B8CCE2]">
+                <span className="w-3.5 h-0.5 bg-[#2563EB] rounded" /> Affected Path
+              </span>
+              <span className="px-1.5 py-0.5 rounded font-bold bg-[#FFF1F2] text-[#C62828] border border-[#C62828]">
+                CRITICAL
+              </span>
+              <span className="px-1.5 py-0.5 rounded font-bold bg-[#FFF5EB] text-[#E76500] border border-[#E76500]">
+                HIGH
+              </span>
+              <span className="px-1.5 py-0.5 rounded font-bold bg-[#FFF9ED] text-[#B47800] border border-[#E5A11A]">
+                MEDIUM
+              </span>
+              <span className="px-1.5 py-0.5 rounded font-bold bg-[#F4F8FF] text-[#2563EB] border border-[#3B82F6]">
+                LOW
+              </span>
+            </div>
+
+            {/* Real Summary Stats */}
+            <div className="flex items-center gap-2 text-[#D9E8F8]">
+              <span className="font-bold text-white">{summaryStats.totalFindings} Finding{summaryStats.totalFindings === 1 ? "" : "s"}</span>
+              {summaryStats.critical > 0 && <span className="text-[#F87171] font-bold">{summaryStats.critical} Critical</span>}
+              {summaryStats.high > 0 && <span className="text-[#FB923C] font-bold">{summaryStats.high} High</span>}
+              {summaryStats.medium > 0 && <span className="text-[#FBBF24] font-bold">{summaryStats.medium} Medium</span>}
+              {summaryStats.low > 0 && <span className="text-[#60A5FA] font-bold">{summaryStats.low} Low</span>}
+            </div>
+          </div>
         </Panel>
       </ReactFlow>
 

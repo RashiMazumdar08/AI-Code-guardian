@@ -5,13 +5,13 @@ import { GRAPH_LABELS } from "../types";
 import type { ScanEvent } from "../types";
 
 const TYPE_COLOR: Record<string, string> = {
-  "workflow.started": "text-sky-400",
-  "workflow.completed": "text-emerald-400",
-  "workflow.failed": "text-red-400",
-  "agent.started": "text-[#ff5400]",
-  "agent.completed": "text-emerald-400",
-  "agent.skipped": "text-[#5c5c68]",
-  "planner.completed": "text-purple-400",
+  "workflow.started": "text-blue-600",
+  "workflow.completed": "text-emerald-600",
+  "workflow.failed": "text-rose-600",
+  "agent.started": "text-blue-600",
+  "agent.completed": "text-emerald-600",
+  "agent.skipped": "text-slate-400",
+  "planner.completed": "text-purple-600",
 };
 
 function describeEvent(evt: ScanEvent): string {
@@ -35,16 +35,16 @@ function describeEvent(evt: ScanEvent): string {
 export function TimelinePanel({ events }: { events: ScanEvent[] }) {
   const visible = events.filter((e) => e.type !== "state.snapshot");
   if (visible.length === 0) {
-    return <div className="text-[11px] font-mono text-[#5c5c68] text-center py-10">No events yet.</div>;
+    return <div className="text-[11px] font-mono text-slate-500 text-center py-10">No events yet.</div>;
   }
   return (
-    <div className="rounded-lg bg-[#0c0d11] border border-white/8 p-3 max-h-[420px] overflow-y-auto">
+    <div className="rounded-lg bg-white border border-[#DCE5F0] shadow-sm p-3 max-h-[420px] overflow-y-auto">
       <div className="space-y-1.5">
         {visible.map((e, i) => (
-          <div key={i} className="flex items-start gap-2 text-[10px] font-mono">
-            <span className="text-[#5c5c68] shrink-0 w-16">{new Date(e.ts * 1000).toLocaleTimeString()}</span>
-            <span className={`font-semibold shrink-0 ${TYPE_COLOR[e.type] || "text-[#8e8e9a]"}`}>{e.type}</span>
-            <span className="text-[#8e8e9a] truncate">{describeEvent(e)}</span>
+          <div key={i} className="flex items-start gap-2 text-[10px] font-mono border-b border-slate-100 pb-1 last:border-0">
+            <span className="text-slate-400 shrink-0 w-16">{new Date(e.ts * 1000).toLocaleTimeString()}</span>
+            <span className={`font-semibold shrink-0 ${TYPE_COLOR[e.type] || "text-slate-600"}`}>{e.type}</span>
+            <span className="text-slate-600 truncate">{describeEvent(e)}</span>
           </div>
         ))}
       </div>

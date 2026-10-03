@@ -156,6 +156,8 @@ export interface FindingItem {
   recommendation?: string;
   language?: string | null;
   confidence?: number;
+  id?: string;
+  engine?: string;
 }
 
 export interface EvidenceItem {
@@ -220,6 +222,7 @@ export interface BusinessIntentResults {
   documents?: string[];
   findings?: BusinessIntentFinding[];
   agent_reason?: string;
+  grok_status?: string;
 }
 
 export interface RiskScores {
@@ -291,6 +294,9 @@ export interface CuratedState {
     manifest_files?: string[];
     detected_libraries?: { name: string; version: string; ecosystem: string; manifest: string }[];
     cve_list?: any[];
+    grok_status?: string;
+    agent_reason?: string;
+    ai_dependency_insights?: any[];
   };
   threat_context?: Record<string, any>;
   policy_results?: Record<string, any>;
@@ -306,6 +312,11 @@ export interface CuratedState {
   findings?: FindingItem[];
   evidence?: EvidenceItem[];
   risk_scores?: RiskScores;
+  ai_security_insights?: FindingItem[];
+  ai_business_insights?: any[];
+  ai_architecture_insights?: any[];
+  ai_dependency_insights?: any[];
+
   patches?: PatchItem[];
   git_diff?: string;
   remediation_summary?: { total_patches_proposed?: number; files_affected?: string[] };
@@ -411,9 +422,14 @@ export interface AgenticAnalysisResult {
   business_analysis: {
     violations: BusinessIntentFinding[];
     results?: BusinessIntentResults;
+    ai_business_insights?: any[];
   };
+  ai_business_insights?: any[];
   architecture_analysis: Record<string, any>;
+  ai_architecture_insights?: any[];
   dependency_analysis: CuratedState["dependency_context"];
+  ai_dependency_insights?: any[];
+
   threat_analysis: {
     threat_context: Record<string, any>;
     attack_paths: AttackPathItem[];

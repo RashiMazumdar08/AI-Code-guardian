@@ -45,41 +45,54 @@ NODE_RISK_FUSION = "risk_fusion"
 NODE_PATCH = "patch"
 NODE_VALIDATION = "validation"
 
-# The optional chain that runs (in this order) once "security" has
-# produced findings for it to reason over. A node here is skipped
-# entirely -- not executed as a no-op -- when PlannerAgent didn't include
-# it in execution_plan.agent_order (e.g. scan_mode="security_only").
-OPTIONAL_CHAIN = [NODE_BUSINESS, NODE_ARCHITECTURE, NODE_DEPENDENCY, NODE_THREAT_SIMULATION, NODE_POLICY]
+PARALLEL_NODES = [NODE_BUSINESS, NODE_ARCHITECTURE, NODE_DEPENDENCY]
+POST_PARALLEL_CHAIN = [NODE_THREAT_SIMULATION, NODE_POLICY]
+OPTIONAL_CHAIN = PARALLEL_NODES + POST_PARALLEL_CHAIN
 
 
-def _next_planned_node(state: "AgentWorkflowState", from_index: int) -> str:
-    """First node in OPTIONAL_CHAIN[from_index:] that's actually in the
-    plan; falls through to risk_fusion if none of the rest are planned."""
+def _first_post_parallel_planned_node(state: "AgentWorkflowState") -> str:
+    """Finds the first node after the parallel block (threat_simulation, policy)
+    that is in the plan; falls through to risk_fusion if neither is planned."""
     order = (state.get("execution_plan") or {}).get("agent_order", [])
-    for name in OPTIONAL_CHAIN[from_index:]:
+    for name in POST_PARALLEL_CHAIN:
         if name in order:
             return name
     return NODE_RISK_FUSION
 
 
-def _route_after_security(state: "AgentWorkflowState") -> str:
-    return _next_planned_node(state, 0)
+def _route_after_security(state: "AgentWorkflowState") -> Any:
+    """Fans out concurrently to all requested parallel nodes (business, architecture,
+    dependency) if present in agent_order. If none are planned, jumps straight to
+    the first post-parallel planned node."""
+    order = (state.get("execution_plan") or {}).get("agent_order", [])
+    planned_parallel = [name for name in PARALLEL_NODES if name in order]
+    if planned_parallel:
+        return planned_parallel
+    return _first_post_parallel_planned_node(state)
 
 
 def _route_after_business(state: "AgentWorkflowState") -> str:
-    return _next_planned_node(state, 1)
+    """Converges after business branch to the first planned post-parallel node."""
+    return _first_post_parallel_planned_node(state)
 
 
 def _route_after_architecture(state: "AgentWorkflowState") -> str:
-    return _next_planned_node(state, 2)
+    """Converges after architecture branch to the first planned post-parallel node."""
+    return _first_post_parallel_planned_node(state)
 
 
 def _route_after_dependency(state: "AgentWorkflowState") -> str:
-    return _next_planned_node(state, 3)
+    """Converges after dependency branch to the first planned post-parallel node."""
+    return _first_post_parallel_planned_node(state)
 
 
 def _route_after_threat_simulation(state: "AgentWorkflowState") -> str:
-    return _next_planned_node(state, 4)
+    """Routes from threat_simulation to policy if planned, else risk_fusion."""
+    order = (state.get("execution_plan") or {}).get("agent_order", [])
+    if NODE_POLICY in order:
+        return NODE_POLICY
+    return NODE_RISK_FUSION
+
 
 
 def _route_after_risk_fusion(state: "AgentWorkflowState") -> str:
@@ -250,7 +263,33 @@ def build_workflow_graph(
                 current_state = self.node_map[NODE_SECURITY](current_state)
 
                 order = (current_state.get("execution_plan") or {}).get("agent_order", [])
-                for name in OPTIONAL_CHAIN:
+                planned_parallel = [name for name in PARALLEL_NODES if name in order]
+
+                if len(planned_parallel) > 1:
+                    import concurrent.futures
+                    from guardian.orchestrator.state import merge_dict, merge_list
+
+                    def _run_branch(name: str) -> Dict[str, Any]:
+                        return self.node_map[name](dict(current_state))
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=len(planned_parallel)) as executor:
+                        futures = [executor.submit(_run_branch, name) for name in planned_parallel]
+                        results = [f.result() for f in futures]
+
+                    for res in results:
+                        for k, v in res.items():
+                            if k not in current_state or current_state[k] is None:
+                                current_state[k] = v
+                            elif isinstance(v, list):
+                                current_state[k] = merge_list(current_state.get(k, []), v)
+                            elif isinstance(v, dict):
+                                current_state[k] = merge_dict(current_state.get(k, {}), v)
+                            else:
+                                current_state[k] = v
+                elif len(planned_parallel) == 1:
+                    current_state = self.node_map[planned_parallel[0]](current_state)
+
+                for name in POST_PARALLEL_CHAIN:
                     if name in order:
                         current_state = self.node_map[name](current_state)
 

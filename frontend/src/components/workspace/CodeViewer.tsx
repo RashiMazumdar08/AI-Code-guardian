@@ -58,7 +58,8 @@ export default function CodeViewer({ content, language = "javascript", findings 
             minimap: { enabled: true },
             scrollBeyondLastLine: false,
             fontSize: 14,
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+            lineHeight: 21,
+            fontFamily: "'JetBrains Mono', Consolas, 'Courier New', monospace",
             wordWrap: "on",
             renderWhitespace: "selection",
           }}
@@ -66,7 +67,7 @@ export default function CodeViewer({ content, language = "javascript", findings 
             editorRef.current = editor;
           }}
           loading={
-            <div className="flex items-center justify-center h-full text-slate-400">
+            <div className="flex items-center justify-center h-full text-[14px] font-sans font-normal text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin mr-2" />
               Loading editor...
             </div>

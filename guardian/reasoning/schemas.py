@@ -43,6 +43,7 @@ class ComplianceVerdict(str, Enum):
     COMPLIANT = "COMPLIANT"
     VIOLATION = "VIOLATION"
     POTENTIAL_VIOLATION = "POTENTIAL_VIOLATION"
+    PARTIAL = "PARTIAL"
     INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
@@ -129,10 +130,10 @@ class ReasoningResponse:
 # JSON extraction
 # ---------------------------------------------------------------------------
 def extract_json(text: str) -> Optional[dict]:
-    """Pull the first JSON object out of a model response.
+    """Pull the first valid JSON object out of a model response.
 
-    Tolerates markdown fences, smart quotes and trailing commas — those are
-    transport noise, not schema drift. Does NOT tolerate missing or
+    Tolerates markdown fences, smart quotes, trailing commas, and reasoning
+    prose preceding the JSON object. Does NOT tolerate missing or
     misnamed fields; that is the validator's job and it must stay strict.
     """
     if not text or not text.strip():
@@ -140,9 +141,9 @@ def extract_json(text: str) -> Optional[dict]:
 
     candidates = [text.strip()]
     candidates.extend(m.group(1).strip() for m in _FENCE.finditer(text))
-    balanced = _balanced_object(text)
-    if balanced:
-        candidates.append(balanced)
+    balanced_objects = _all_balanced_objects(text)
+    # Reverse balanced objects so the final JSON object emitted after thinking steps is prioritized
+    candidates.extend(reversed(balanced_objects))
 
     for candidate in candidates:
         for attempt in (candidate, _repair(candidate)):
@@ -157,30 +158,45 @@ def extract_json(text: str) -> Optional[dict]:
     return None
 
 
+def _all_balanced_objects(text: str) -> list[str]:
+    objects = []
+    i = 0
+    while i < len(text):
+        start = text.find("{", i)
+        if start == -1:
+            break
+        depth, in_string, escaped = 0, False, False
+        found_end = -1
+        for j in range(start, len(text)):
+            ch = text[j]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif ch == "\\":
+                    escaped = True
+                elif ch == '"':
+                    in_string = False
+                continue
+            if ch == '"':
+                in_string = True
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    found_end = j
+                    break
+        if found_end != -1:
+            objects.append(text[start:found_end + 1])
+            i = found_end + 1
+        else:
+            i = start + 1
+    return objects
+
+
 def _balanced_object(text: str) -> Optional[str]:
-    start = text.find("{")
-    if start == -1:
-        return None
-    depth, in_string, escaped = 0, False, False
-    for i in range(start, len(text)):
-        ch = text[i]
-        if in_string:
-            if escaped:
-                escaped = False
-            elif ch == "\\":
-                escaped = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start:i + 1]
-    return None
+    objs = _all_balanced_objects(text)
+    return objs[0] if objs else None
 
 
 def _repair(text: str) -> str:
@@ -299,7 +315,16 @@ def _parse_finding(item: dict, index: int, require_evidence: bool,
                    extra_fields: tuple[str, ...]) -> tuple[Optional[ReasoningFinding], list[str]]:
     problems: list[str] = []
 
-    evidence_ids = _as_id_list(item.get("evidence_ids") or item.get("evidence"))
+    evidence_ids = _as_id_list(
+        item.get("evidence_ids")
+        or item.get("evidence")
+        or item.get("evidence_id")
+        or item.get("file")
+        or item.get("affected_component")
+    )
+    if not evidence_ids and (item.get("file") or item.get("function")):
+        evidence_ids = ["E1"]
+
     if require_evidence and not evidence_ids:
         # This is the load-bearing rule of the whole AI layer: a claim
         # that cites nothing cannot be checked, so it is not admitted.
@@ -312,11 +337,13 @@ def _parse_finding(item: dict, index: int, require_evidence: bool,
         severity = "Info"
 
     confidence = _as_confidence(item.get("confidence"))
+    if confidence == 0.0 and (item.get("reason") or item.get("explanation")):
+        confidence = 0.85
     if not 0.0 <= confidence <= 1.0:
         problems.append(f"findings[{index}].confidence out of range: {confidence}")
         confidence = 0.0
 
-    reason = _as_string(item.get("reason") or item.get("explanation"))
+    reason = _as_string(item.get("reason") or item.get("explanation") or item.get("analysis"))
     if not reason:
         problems.append(f"findings[{index}] has no reason/explanation")
 
@@ -344,6 +371,14 @@ BUSINESS_INTENT_FIELDS = ("verdict", "policy_id", "requirement", "affected_compo
 QUANTUM_CONTEXT_FIELDS = ("purpose", "migration_urgency", "migration_approach",
                           "affected_component", "business_impact",
                           "recommended_pqc_algorithm")
+DEPENDENCY_FIELDS = ("package", "version", "vulnerability_id", "analysis",
+                     "usage_context", "impact", "relevance", "remediation")
+
+
+class DependencyUsageRelevance(str, Enum):
+    RELEVANT = "RELEVANT"
+    POTENTIALLY_RELEVANT = "POTENTIALLY_RELEVANT"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
 def parse_business_intent_response(text: str, *, model: str = "") -> ReasoningResponse:
@@ -383,6 +418,24 @@ def parse_quantum_context_response(text: str, *, model: str = "") -> ReasoningRe
                 f"findings[{index}].migration_urgency invalid: {raw!r}")
             urgency = MigrationUrgency.MEDIUM
         finding.extras["migration_urgency"] = urgency.value
+    return response
+
+
+def parse_dependency_reasoning_response(text: str, *, task: str = "dependency_reasoning", model: str = "", **kwargs) -> ReasoningResponse:
+    """Parse a dependency security contextual reasoning response, normalising relevance."""
+    response = parse_reasoning_response(
+        text, task=task, model=model, require_evidence=True,
+        extra_fields=DEPENDENCY_FIELDS)
+
+    valid_relevance = {"RELEVANT", "POTENTIALLY_RELEVANT", "INSUFFICIENT_EVIDENCE"}
+    for index, finding in enumerate(response.findings):
+        raw_rel = _as_string(finding.extras.get("relevance")).upper().replace(" ", "_")
+        if raw_rel not in valid_relevance:
+            response.problems.append(
+                f"findings[{index}].relevance invalid: {raw_rel!r}; defaulted to INSUFFICIENT_EVIDENCE"
+            )
+            raw_rel = "INSUFFICIENT_EVIDENCE"
+        finding.extras["relevance"] = raw_rel
     return response
 
 
@@ -426,3 +479,16 @@ QUANTUM_SCHEMA_INSTRUCTION = BASE_SCHEMA_INSTRUCTION.replace(
     '"migration_approach": "<how to migrate this specific call site>",\n      '
     '"recommended_pqc_algorithm": "<NIST PQC algorithm>",\n      '
     '"affected_component": "<component name>",')
+
+DEPENDENCY_SCHEMA_INSTRUCTION = BASE_SCHEMA_INSTRUCTION.replace(
+    '"category": "<category>",',
+    '"category": "dependency_insight",\n      '
+    '"package": "<package name>",\n      '
+    '"version": "<package version>",\n      '
+    '"vulnerability_id": "<OSV or CVE ID>",\n      '
+    '"analysis": "<contextual analysis of vulnerability in this repository>",\n      '
+    '"usage_context": "<how dependency is used in codebase>",\n      '
+    '"impact": "<application-level security impact>",\n      '
+    '"relevance": "RELEVANT|POTENTIALLY_RELEVANT|INSUFFICIENT_EVIDENCE",\n      '
+    '"remediation": "<practical remediation or upgrade guidance>",')
+

@@ -20,37 +20,37 @@ const renderInlineFormatting = (text: string) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       const inner = part.slice(2, -2);
       if (inner.toLowerCase() === "critical") {
-        return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider">CRITICAL</span>;
+        return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[9.5px] font-mono font-bold uppercase tracking-wider">CRITICAL</span>;
       }
       if (inner.toLowerCase() === "high") {
-        return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-[#ff5400]/20 text-[#ff5400] border border-[#ff5400]/40 text-[9.5px] font-mono font-bold uppercase tracking-wider">HIGH</span>;
+        return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[9.5px] font-mono font-bold uppercase tracking-wider">HIGH</span>;
       }
       if (inner.toLowerCase() === "medium") {
-        return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider">MEDIUM</span>;
+        return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200 text-[9.5px] font-mono font-bold uppercase tracking-wider">MEDIUM</span>;
       }
       if (inner.toLowerCase() === "low") {
-        return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider">LOW</span>;
+        return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[9.5px] font-mono font-bold uppercase tracking-wider">LOW</span>;
       }
-      return <strong key={i} className="font-semibold text-[#ffffff]">{inner}</strong>;
+      return <strong key={i} className="font-semibold text-[#111827]">{inner}</strong>;
     }
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
-        <code key={i} className="px-1.5 py-0.5 mx-0.5 rounded bg-[#181924] border border-white/10 font-mono text-[11px] text-[#ffb703] break-all">
+        <code key={i} className="px-1.5 py-0.5 mx-0.5 rounded bg-slate-100 border border-[#DCE5F0] font-mono text-[11px] text-blue-700 font-semibold break-all">
           {part.slice(1, -1)}
         </code>
       );
     }
     if (part === "[CRITICAL]") {
-      return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider">CRITICAL</span>;
+      return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[9.5px] font-mono font-bold uppercase tracking-wider">CRITICAL</span>;
     }
     if (part === "[HIGH]") {
-      return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-[#ff5400]/20 text-[#ff5400] border border-[#ff5400]/40 text-[9.5px] font-mono font-bold uppercase tracking-wider">HIGH</span>;
+      return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[9.5px] font-mono font-bold uppercase tracking-wider">HIGH</span>;
     }
     if (part === "[MEDIUM]") {
-      return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider">MEDIUM</span>;
+      return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200 text-[9.5px] font-mono font-bold uppercase tracking-wider">MEDIUM</span>;
     }
     if (part === "[LOW]") {
-      return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider">LOW</span>;
+      return <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[9.5px] font-mono font-bold uppercase tracking-wider">LOW</span>;
     }
     return part;
   });
@@ -65,7 +65,7 @@ const FormattedChatMessage: React.FC<{ content: string }> = ({ content }) => {
   const blocks = cleanContent.split(/(```[\s\S]*?```)/g);
 
   return (
-    <div className="space-y-3 text-xs leading-relaxed text-[#e1e1e6]">
+    <div className="space-y-3 text-xs leading-relaxed text-slate-700">
       {blocks.map((block, idx) => {
         if (block.startsWith("```") && block.endsWith("```")) {
           const lines = block.slice(3, -3).trim().split("\n");
@@ -75,11 +75,11 @@ const FormattedChatMessage: React.FC<{ content: string }> = ({ content }) => {
           const code = hasLang ? lines.slice(1).join("\n") : lines.join("\n");
 
           return (
-            <div key={idx} className="my-2.5 rounded-lg border border-white/10 bg-[#07080b] overflow-hidden shadow-inner font-mono">
+            <div key={idx} className="my-2.5 rounded-lg border border-slate-800 bg-[#0F172A] overflow-hidden shadow-inner font-mono">
               {lang && (
-                <div className="bg-[#12131a] px-3 py-1 border-b border-white/8 text-[10px] text-[#8e8e9a] font-bold uppercase tracking-wider flex justify-between items-center">
+                <div className="bg-[#1E293B] px-3 py-1 border-b border-slate-800 text-[10px] text-slate-300 font-bold uppercase tracking-wider flex justify-between items-center">
                   <span>{lang}</span>
-                  <span className="text-[9px] text-[#ff5400]">REMEDIATION CODE</span>
+                  <span className="text-[9px] text-blue-400">REMEDIATION CODE</span>
                 </div>
               )}
               <pre className="p-3 text-[11px] text-amber-300 overflow-x-auto whitespace-pre leading-normal">
@@ -99,8 +99,8 @@ const FormattedChatMessage: React.FC<{ content: string }> = ({ content }) => {
               if (trimmed.startsWith("#")) {
                 const headerText = trimmed.replace(/^#+\s*/, "");
                 return (
-                  <h4 key={lineIdx} className="text-[13px] font-bold text-[#f4f4f8] pt-2 pb-1 border-b border-white/8 font-mono flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#ff5400]" />
+                  <h4 key={lineIdx} className="text-[13px] font-bold text-[#111827] pt-2 pb-1 border-b border-[#DCE5F0] font-mono flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
                     {renderInlineFormatting(headerText)}
                   </h4>
                 );
@@ -110,7 +110,7 @@ const FormattedChatMessage: React.FC<{ content: string }> = ({ content }) => {
                 const listText = trimmed.substring(2);
                 return (
                   <div key={lineIdx} className="flex items-start gap-2 pl-1 my-0.5">
-                    <span className="text-[#ff5400] text-[10px] mt-0.5 shrink-0">•</span>
+                    <span className="text-blue-600 text-[10px] mt-0.5 shrink-0">•</span>
                     <div className="flex-1">{renderInlineFormatting(listText)}</div>
                   </div>
                 );
@@ -120,7 +120,7 @@ const FormattedChatMessage: React.FC<{ content: string }> = ({ content }) => {
               if (numMatch) {
                 return (
                   <div key={lineIdx} className="flex items-start gap-2 pl-1 my-1">
-                    <span className="text-[#ff5400] font-mono text-[11px] font-bold shrink-0">{numMatch[1]}.</span>
+                    <span className="text-blue-600 font-mono text-[11px] font-bold shrink-0">{numMatch[1]}.</span>
                     <div className="flex-1">{renderInlineFormatting(numMatch[2])}</div>
                   </div>
                 );
@@ -130,7 +130,7 @@ const FormattedChatMessage: React.FC<{ content: string }> = ({ content }) => {
                 if (trimmed.includes("---")) return null;
                 const cells = trimmed.split("|").map((c) => c.trim()).filter(Boolean);
                 return (
-                  <div key={lineIdx} className="my-1.5 p-2 rounded-lg bg-[#12131a] border border-white/8 flex flex-wrap gap-3 text-[11px]">
+                  <div key={lineIdx} className="my-1.5 p-2 rounded-lg bg-slate-50 border border-[#DCE5F0] flex flex-wrap gap-3 text-[11px]">
                     {cells.map((cell, cIdx) => (
                       <div key={cIdx} className="flex-1 min-w-[120px]">
                         {renderInlineFormatting(cell)}
@@ -142,8 +142,8 @@ const FormattedChatMessage: React.FC<{ content: string }> = ({ content }) => {
 
               if (trimmed.startsWith("**Sources:**") || trimmed.startsWith("Sources:")) {
                 return (
-                  <div key={lineIdx} className="mt-3 pt-2 border-t border-white/10 text-[11px] font-mono text-[#8e8e9a]">
-                    <span className="font-bold text-[#f4f4f8]">📌 Evidence Sources:</span>
+                  <div key={lineIdx} className="mt-3 pt-2 border-t border-[#DCE5F0] text-[11px] font-mono text-slate-500">
+                    <span className="font-bold text-[#111827]">📌 Evidence Sources:</span>
                   </div>
                 );
               }
@@ -249,57 +249,57 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   };
 
   const getPersonaIcon = (p: PersonaType) => {
-    if (p === "Executive") return <Briefcase className="w-3.5 h-3.5 text-[#ff5400]" />;
-    if (p === "Developer") return <Terminal className="w-3.5 h-3.5 text-[#ff5400]" />;
-    return <Shield className="w-3.5 h-3.5 text-[#ff5400]" />;
+    if (p === "Executive") return <Briefcase className="w-3.5 h-3.5 text-blue-600" />;
+    if (p === "Developer") return <Terminal className="w-3.5 h-3.5 text-blue-600" />;
+    return <Shield className="w-3.5 h-3.5 text-blue-600" />;
   };
 
   return (
     <div
       onClick={onClose}
-      className={`fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-md flex justify-end transition-opacity duration-300 ease-in-out ${
+      className={`fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-xs flex justify-end transition-opacity duration-300 ease-in-out ${
         isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
       }`}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full max-w-xl bg-[#0c0d11] border-l border-white/8 text-[#f4f4f8] h-full flex flex-col shadow-[-20px_0_60px_rgba(0,0,0,0.7)] transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`w-full max-w-xl bg-[#EEF4FB] border-l border-[#DCE5F0] text-[#111827] h-full flex flex-col shadow-2xl transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
 
         {/* Header */}
-        <div className="p-4 border-b border-white/8 flex items-center justify-between bg-[#12131a]">
+        <div className="p-4 border-b border-[#DCE5F0] flex items-center justify-between bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[#0c0d11] border border-[#ff5400]/30 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-[#ff5400]" />
+            <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-[#f4f4f8] font-mono tracking-wide flex items-center gap-1.5">
+              <h2 className="text-sm font-bold text-[#111827] font-mono tracking-wide flex items-center gap-1.5">
                 AI GUARDIAN CHAT
               </h2>
-              <p className="text-[11px] font-mono text-[#8e8e9a]">Contextual Reasoning & Persona Guidance</p>
+              <p className="text-[11px] font-mono text-slate-500">Contextual Reasoning &amp; Persona Guidance</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             {/* Persona Selector */}
-            <div className="flex items-center gap-1.5 bg-[#0c0d11] border border-white/10 rounded-lg px-2.5 py-1.5 hover:border-[#ff5400]/30 transition-colors">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-[#DCE5F0] rounded-lg px-2.5 py-1.5 hover:border-blue-500 transition-colors">
               {getPersonaIcon(persona)}
               <select
                 value={persona}
                 onChange={(e) => setPersona(e.target.value as PersonaType)}
-                className="bg-transparent text-xs font-mono font-semibold text-[#f4f4f8] focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-mono font-semibold text-[#111827] focus:outline-none cursor-pointer"
               >
-                <option value="Executive" className="bg-[#0c0d11]">Executive</option>
-                <option value="Developer" className="bg-[#0c0d11]">Developer</option>
-                <option value="Red Teamer" className="bg-[#0c0d11]">Red Teamer</option>
+                <option value="Executive" className="bg-white">Executive</option>
+                <option value="Developer" className="bg-white">Developer</option>
+                <option value="Red Teamer" className="bg-white">Red Teamer</option>
               </select>
             </div>
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-[#8e8e9a] hover:text-[#f4f4f8] hover:bg-white/8 transition"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-[#111827] hover:bg-slate-100 transition"
             >
               <X className="w-5 h-5" />
             </button>
@@ -307,22 +307,22 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         </div>
 
         {/* Message Thread */}
-        <div className="p-4 flex-1 overflow-y-auto space-y-4 bg-[#0B0F19]">
+        <div className="p-4 flex-1 overflow-y-auto space-y-4 bg-slate-50/50">
           {messages.map((msg) => (
             <div
               key={msg.id}
               className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               {msg.role === "assistant" && (
-                <div className="w-8 h-8 rounded-full bg-[#12131a] border border-[#ff5400]/20 flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-[#ff5400]" />
+                <div className="w-8 h-8 rounded-full bg-white border border-[#DCE5F0] flex items-center justify-center shrink-0 shadow-xs">
+                  <Bot className="w-4 h-4 text-blue-600" />
                 </div>
               )}
               <div
                 className={`max-w-[85%] rounded-xl p-3.5 text-xs leading-relaxed space-y-2 ${
                   msg.role === "user"
-                    ? "bg-[#ff5400] text-black font-semibold rounded-tr-none"
-                    : "bg-[#12131a] border border-white/8 text-[#f4f4f8] rounded-tl-none"
+                    ? "bg-blue-600 text-white font-medium rounded-tr-none shadow-xs"
+                    : "bg-white border border-[#DCE5F0] text-[#111827] rounded-tl-none shadow-sm"
                 }`}
               >
                 {msg.role === "user" ? (
@@ -332,16 +332,16 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                 )}
               </div>
               {msg.role === "user" && (
-                <div className="w-8 h-8 rounded-full bg-[#ff5400]/10 border border-[#ff5400]/30 flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-[#ff5400]" />
+                <div className="w-8 h-8 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-blue-600" />
                 </div>
               )}
             </div>
           ))}
           {loading && (
-            <div className="flex gap-3 justify-start items-center text-xs font-mono text-[#8e8e9a] animate-pulse">
-              <Bot className="w-4 h-4 text-[#ff5400]" />
-              <span>NEMOTRON REASONING IN PROGRESS...</span>
+            <div className="flex gap-3 justify-start items-center text-xs font-mono text-slate-500 animate-pulse">
+              <Bot className="w-4 h-4 text-blue-600" />
+              <span>GROQ AI REASONING IN PROGRESS...</span>
             </div>
           )}
         </div>
@@ -349,19 +349,19 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         {/* Input Footer */}
         <form
           onSubmit={handleSendMessage}
-          className="p-4 border-t border-white/8 bg-[#12131a] flex gap-2"
+          className="p-4 border-t border-[#DCE5F0] bg-white flex gap-2"
         >
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={`Ask in ${persona} persona...`}
-            className="flex-1 glass-input rounded-lg px-4 py-2.5 text-xs font-mono focus:outline-none transition"
+            className="flex-1 bg-slate-50 border border-[#DCE5F0] text-[#111827] placeholder:text-slate-400 rounded-lg px-4 py-2.5 text-xs font-mono focus:outline-none focus:border-blue-500 transition shadow-xs"
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="px-4 py-2.5 rounded-lg glass-button disabled:opacity-40 transition flex items-center gap-1.5 text-xs font-mono font-bold"
+            className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 transition flex items-center gap-1.5 text-xs font-mono font-bold shadow-xs"
           >
             <Send className="w-4 h-4" />
           </button>

@@ -37,51 +37,104 @@ class ExecutionMetrics(TypedDict, total=False):
     number_of_evidence_objects: int
 
 
+def merge_list(a: Optional[List[Any]], b: Optional[List[Any]]) -> List[Any]:
+    """Reducer merging list items cleanly without duplicate finding/insight IDs during parallel node execution."""
+    if not a:
+        return list(b or [])
+    if not b:
+        return list(a or [])
+    seen = set()
+    result = []
+    for item in list(a) + list(b):
+        if isinstance(item, dict):
+            item_id = item.get("finding_id") or item.get("id") or item.get("patch_id") or item.get("rule_id") or item.get("insight_id")
+            if not item_id:
+                title = str(item.get("title") or item.get("category") or "")
+                reason = str(item.get("reason") or item.get("description") or item.get("explanation") or "")
+                file_path = str(item.get("file") or item.get("file_path") or "")
+                line_val = str(item.get("line") or item.get("line_number") or 0)
+                func_val = str(item.get("function") or item.get("affected_function") or "")
+                if title or reason or file_path:
+                    import hashlib
+                    content_basis = f"{title}|{reason}|{file_path}|{line_val}|{func_val}"
+                    item_id = f"CONTENT_HASH:{hashlib.md5(content_basis.encode('utf-8', errors='ignore')).hexdigest()}"
+
+            if item_id:
+                if item_id in seen:
+                    continue
+                seen.add(item_id)
+        result.append(item)
+    return result
+
+
+def merge_dict(a: Optional[Dict[str, Any]], b: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Reducer merging dictionary fields cleanly during parallel node execution."""
+    res = dict(a or {})
+    res.update(b or {})
+    return res
+
+
+def pick_first(a: Optional[Any], b: Optional[Any]) -> Any:
+    """Reducer picking the updated non-empty value if provided, or keeping the existing value."""
+    if b is not None and b != "":
+        return b
+    if a is not None:
+        return a
+    return b
+
+
 class AgentWorkflowState(TypedDict, total=False):
     """
     Master state schema passed between LangGraph nodes.
     Single source of truth across all AI agents in AI Code Guardian v3.
     """
     messages: Annotated[list[Any], add_messages]
-    scan_mode: str
-    scan_id: str
-    repository_profile: Dict[str, Any]
-    repository_graph: Dict[str, Any]
-    semantic_context: Dict[str, Any]
-    business_context: Dict[str, Any]
-    business_intent_results: Dict[str, Any]
-    business_violations: List[Dict[str, Any]]
-    policy_context: Dict[str, Any]
-    knowledge_context: Dict[str, Any]
-    retrieved_documents: List[Dict[str, Any]]
-    current_task: str
-    execution_plan: Dict[str, Any]
-    active_agent: str
-    completed_agents: List[str]
-    pending_agents: List[str]
-    findings: List[Dict[str, Any]]
-    evidence: List[Dict[str, Any]]
-    risk_scores: Dict[str, Any]
-    validation_results: List[Dict[str, Any]]
-    patches: List[Dict[str, Any]]
-    reports: List[Dict[str, Any]]
-    repository_context: Dict[str, Any]
-    architecture_context: Dict[str, Any]
-    dependency_context: Dict[str, Any]
-    security_context: Dict[str, Any]
-    threat_context: Dict[str, Any]
-    policy_results: Dict[str, Any]
-    correlated_findings: Dict[str, Any]
-    attack_paths: List[Dict[str, Any]]
-    exploitability: float
-    git_diff: str
-    validation_report: Dict[str, Any]
-    grounding_report: Dict[str, Any]
-    remediation_summary: Dict[str, Any]
-    developer_explanation: str
-    validation_confidence: float
-    agent_trace: List[AgentTrace]
-    execution_metrics: ExecutionMetrics
+    scan_mode: Annotated[str, pick_first]
+    scan_id: Annotated[str, pick_first]
+    repository_profile: Annotated[Dict[str, Any], merge_dict]
+    repository_graph: Annotated[Dict[str, Any], merge_dict]
+    semantic_context: Annotated[Dict[str, Any], merge_dict]
+    business_context: Annotated[Dict[str, Any], merge_dict]
+    business_intent_results: Annotated[Dict[str, Any], merge_dict]
+    business_violations: Annotated[List[Dict[str, Any]], merge_list]
+    policy_context: Annotated[Dict[str, Any], merge_dict]
+    knowledge_context: Annotated[Dict[str, Any], merge_dict]
+    retrieved_documents: Annotated[List[Dict[str, Any]], merge_list]
+    current_task: Annotated[str, pick_first]
+    execution_plan: Annotated[Dict[str, Any], merge_dict]
+    active_agent: Annotated[str, pick_first]
+    completed_agents: Annotated[List[str], merge_list]
+    pending_agents: Annotated[List[str], merge_list]
+    findings: Annotated[List[Dict[str, Any]], merge_list]
+    evidence: Annotated[List[Dict[str, Any]], merge_list]
+    risk_scores: Annotated[Dict[str, Any], merge_dict]
+    validation_results: Annotated[List[Dict[str, Any]], merge_list]
+    patches: Annotated[List[Dict[str, Any]], merge_list]
+    reports: Annotated[List[Dict[str, Any]], merge_list]
+    repository_context: Annotated[Dict[str, Any], merge_dict]
+    architecture_context: Annotated[Dict[str, Any], merge_dict]
+    dependency_context: Annotated[Dict[str, Any], merge_dict]
+    security_context: Annotated[Dict[str, Any], merge_dict]
+    threat_context: Annotated[Dict[str, Any], merge_dict]
+    policy_results: Annotated[Dict[str, Any], merge_dict]
+    correlated_findings: Annotated[Dict[str, Any], merge_dict]
+    attack_paths: Annotated[List[Dict[str, Any]], merge_list]
+    exploitability: Annotated[float, pick_first]
+    git_diff: Annotated[str, pick_first]
+    validation_report: Annotated[Dict[str, Any], merge_dict]
+    grounding_report: Annotated[Dict[str, Any], merge_dict]
+    remediation_summary: Annotated[Dict[str, Any], merge_dict]
+    developer_explanation: Annotated[str, pick_first]
+    validation_confidence: Annotated[float, pick_first]
+    agent_trace: Annotated[List[AgentTrace], merge_list]
+    agent_trace_log: Annotated[List[Dict[str, Any]], merge_list]
+    execution_metrics: Annotated[ExecutionMetrics, merge_dict]
+    ai_security_insights: Annotated[List[Dict[str, Any]], merge_list]
+    ai_architecture_insights: Annotated[List[Dict[str, Any]], merge_list]
+    ai_dependency_insights: Annotated[List[Dict[str, Any]], merge_list]
+    ai_threat_insights: Annotated[List[Dict[str, Any]], merge_list]
+    ai_business_insights: Annotated[List[Dict[str, Any]], merge_list]
+    ai_validation_breakdown: Annotated[List[Dict[str, Any]], merge_list]
 
 
 def create_initial_state(
@@ -94,6 +147,7 @@ def create_initial_state(
     evidence: Optional[List[Dict[str, Any]]] = None,
     threat_context: Optional[Dict[str, Any]] = None,
     policy_results: Optional[Dict[str, Any]] = None,
+    business_intent_results: Optional[Dict[str, Any]] = None,
     scan_mode: str = "full_scan",
 ) -> AgentWorkflowState:
     """Creates a pristine, fully-initialized AgentWorkflowState dictionary."""
@@ -105,7 +159,7 @@ def create_initial_state(
         "repository_graph": {},
         "semantic_context": {},
         "business_context": business_context or {},
-        "business_intent_results": {},
+        "business_intent_results": business_intent_results or {},
         "business_violations": [],
         "policy_context": policy_context or {},
         "knowledge_context": {},

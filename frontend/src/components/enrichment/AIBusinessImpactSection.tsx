@@ -47,29 +47,29 @@ export function AIBusinessImpactSection({
   const isRunningForThisTarget = (workflowStatus === "starting" || workflowStatus === "running");
 
   return (
-    <div className="rounded-xl bg-[#12131a] border border-violet-500/25 overflow-hidden">
+    <div className="rounded-xl bg-white border border-[#174A85] shadow-sm overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-white/4 transition-colors"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-[#F3F7FC] hover:bg-[#EAF3FF] transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-500/25">AI</span>
-          <span className="text-[11px] font-mono font-bold text-[#f4f4f8]">AI Business Impact Analysis</span>
-          <span className="text-[9px] font-mono text-[#8e8e9a]">(powered by LangGraph Business Agent)</span>
+          <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#EAF3FF] text-[#0064D8] border border-[#BFDBFE]">AI</span>
+          <span className="text-[11px] font-mono font-bold text-[#0B1F33]">AI Business Impact Analysis</span>
+          <span className="text-[9px] font-mono text-[#4F6480]">(powered by LangGraph Business Agent)</span>
         </div>
-        <span className="text-[10px] font-mono text-[#5c5c68]">{open ? "▾" : "▸"}</span>
+        <span className="text-[10px] font-mono text-[#0064D8] font-bold">{open ? "▾" : "▸"}</span>
       </button>
 
       {open && (
-        <div className="px-4 pb-4 border-t border-violet-500/15">
+        <div className="px-4 pb-4 border-t border-[#174A85]">
           {!hasRunForThisScan && !isRunningForThisTarget && (
             <div className="pt-4 text-center py-6">
-              <p className="text-[10px] font-mono text-[#8e8e9a] mb-3">
+              <p className="text-[10px] font-mono text-slate-500 mb-3">
                 Run Agentic Analysis to see AI-generated business impact analysis for this codebase.
               </p>
               <button
                 onClick={onRunAgentic}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wide bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wide bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
               >
                 <Play className="w-3 h-3" /> Run Agentic Analysis
               </button>
@@ -77,33 +77,33 @@ export function AIBusinessImpactSection({
           )}
 
           {isRunningForThisTarget && (
-            <div className="pt-4 flex items-center gap-2 text-[10px] font-mono text-violet-300 py-6 justify-center">
+            <div className="pt-4 flex items-center gap-2 text-[10px] font-mono text-blue-600 py-6 justify-center">
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Business Agent analyzing…
             </div>
           )}
 
           {hasRunForThisScan && !isRunningForThisTarget && (
             <div className="pt-4 space-y-4">
-              <div className="text-[8.5px] font-mono text-[#5c5c68]">
+              <div className="text-[8.5px] font-mono text-slate-400">
                 agentic run: {agenticScanId || "—"} · grounded in deterministic scan: {sourceScanId || "—"}
               </div>
 
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <AlertOctagon className="w-3.5 h-3.5 text-red-400" />
-                  <span className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] font-bold">
+                  <AlertOctagon className="w-3.5 h-3.5 text-red-600" />
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-600 font-bold">
                     Business Violations ({violations.length})
                   </span>
                 </div>
                 {violations.length === 0 ? (
-                  <div className="text-[10px] font-mono text-[#5c5c68] text-center py-4 rounded-lg bg-[#0c0d11] border border-white/8">
+                  <div className="text-[10px] font-mono text-slate-500 text-center py-4 rounded-lg bg-slate-50 border border-[#174A85]">
                     No business-impact violations flagged by the Business Agent.
                   </div>
                 ) : (
-                  <div className="rounded-lg bg-[#0c0d11] border border-white/8 overflow-hidden overflow-x-auto">
+                  <div className="rounded-lg bg-white border border-[#174A85] overflow-hidden overflow-x-auto shadow-sm">
                     <table className="w-full text-[10px] font-mono">
                       <thead>
-                        <tr className="text-[#8e8e9a] border-b border-white/8">
+                        <tr className="text-slate-600 bg-slate-50 border-b border-[#174A85]">
                           <th className="text-left px-3 py-1.5">Requirement</th>
                           <th className="text-left px-3 py-1.5">Status</th>
                           <th className="text-left px-3 py-1.5">Match Confidence</th>
@@ -112,20 +112,20 @@ export function AIBusinessImpactSection({
                       </thead>
                       <tbody>
                         {violations.map((v, i) => {
-                          const s = STATUS_LABEL[v.status] || { label: v.status, cls: "text-[#8e8e9a] bg-white/8" };
+                          const s = STATUS_LABEL[v.status] || { label: v.status, cls: "text-slate-600 bg-slate-100" };
                           return (
-                            <tr key={`${v.rule_id}-${i}`} className="border-b border-white/5 last:border-0 align-top">
-                              <td className="px-3 py-1.5 text-[#f4f4f8]">
+                            <tr key={`${v.rule_id}-${i}`} className="border-b border-slate-100 last:border-0 align-top">
+                              <td className="px-3 py-1.5 text-slate-900">
                                 <div className="font-semibold whitespace-nowrap">{v.rule_id}</div>
-                                <div className="text-[#8e8e9a] max-w-[280px]">{v.why || v.what || v.rule}</div>
+                                <div className="text-slate-500 max-w-[280px]">{v.why || v.what || v.rule}</div>
                               </td>
                               <td className="px-3 py-1.5">
-                                <span className={`text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 rounded ${s.cls}`}>{s.label}</span>
+                                <span className={`text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border border-red-200 ${s.cls}`}>{s.label}</span>
                               </td>
-                              <td className="px-3 py-1.5 text-[#8e8e9a]">
+                              <td className="px-3 py-1.5 text-slate-500">
                                 {typeof v.score === "number" ? `${Math.round(v.score * 100)}%` : "—"}
                               </td>
-                              <td className="px-3 py-1.5 text-[#8e8e9a] max-w-[220px] truncate">{v.evidence || "—"}</td>
+                              <td className="px-3 py-1.5 text-slate-500 max-w-[220px] truncate">{v.evidence || "—"}</td>
                             </tr>
                           );
                         })}
@@ -136,34 +136,34 @@ export function AIBusinessImpactSection({
               </div>
 
               <div>
-                <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] font-bold mb-2">
+                <div className="text-[9px] font-mono uppercase tracking-wider text-slate-600 font-bold mb-2">
                   Correlated Risks Touching Business-Critical Assets ({businessCriticalChains.length})
                 </div>
                 {businessCriticalChains.length === 0 ? (
-                  <div className="text-[10px] font-mono text-[#5c5c68] text-center py-4 rounded-lg bg-[#0c0d11] border border-white/8">
+                  <div className="text-[10px] font-mono text-slate-500 text-center py-4 rounded-lg bg-slate-50 border border-[#174A85]">
                     No correlated risks flagged against business-critical assets.
                   </div>
                 ) : (
                   <div className="space-y-1.5">
                     {businessCriticalChains.slice(0, 5).map((c) => (
-                      <div key={c.chain_id} className="flex items-center justify-between gap-2 text-[10px] font-mono px-3 py-2 rounded-lg bg-[#0c0d11] border border-white/8">
-                        <span className="text-[#f4f4f8]">
+                      <div key={c.chain_id} className="flex items-center justify-between gap-2 text-[10px] font-mono px-3 py-2 rounded-lg bg-slate-50 border border-[#174A85]">
+                        <span className="text-slate-900">
                           {onViewFinding ? (
                             <button
                               onClick={() => onViewFinding(c.finding_id)}
-                              className="hover:text-[#ff5400] underline decoration-dotted underline-offset-2 transition-colors"
+                              className="hover:text-blue-600 underline decoration-dotted underline-offset-2 transition-colors font-bold"
                               title="View this chain's underlying finding in Security"
                             >
                               {c.title || c.finding_id}
                             </button>
                           ) : (
                             c.title || c.finding_id
-                          )} <span className="text-[#8e8e9a]">→ {c.target_asset}</span>
+                          )} <span className="text-slate-500">→ {c.target_asset}</span>
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">{c.business_criticality}</span>
+                          <span className="text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">{c.business_criticality}</span>
                           {(c.policy_violations || []).length > 0 && (
-                            <span className="text-[8.5px] text-[#8e8e9a]">{(c.policy_violations || []).length} policy violation(s)</span>
+                            <span className="text-[8.5px] text-slate-500">{(c.policy_violations || []).length} policy violation(s)</span>
                           )}
                         </div>
                       </div>

@@ -62,7 +62,7 @@ class BaseLLM(ABC):
 
     @abstractmethod
     def chat(self, messages: list[dict], *, temperature: Optional[float] = None,
-             max_tokens: Optional[int] = None) -> LLMResponse:
+             max_tokens: Optional[int] = None, reasoning_effort: Optional[str] = None) -> LLMResponse:
         """Blocking completion. `messages` is OpenAI-style:
         [{"role": "system"|"user"|"assistant", "content": str}, ...]"""
         ...

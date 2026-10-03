@@ -90,6 +90,58 @@ class ValidationAgent(BaseAgent):
 
         avg_confidence = round(total_confidence / max(1, len(validated_patches)), 2)
 
+        # Optional Grok AI finding validation review
+        ai_validation_breakdown: List[Dict[str, Any]] = []
+        try:
+            from guardian.llm.config import LLMConfig
+            cfg = LLMConfig.from_env()
+            if cfg.is_agent_enabled("validation"):
+                from guardian.reasoning.gateway import ReasoningGateway, ReasoningRequest
+                service = ReasoningGateway(config=cfg)
+                if service.configured:
+                    f_summary = "\n".join(
+                        f"[E{i+1}] {f.get('rule_id', 'SEC')}: {f.get('title', '')} in {f.get('file', '')}:{f.get('line', 0)} (source={f.get('source', 'SAST')})"
+                        for i, f in enumerate(findings[:8])
+                    ) or "[E1] General findings validation"
+
+                    req = ReasoningRequest(
+                        task="finding_validation",
+                        instruction=(
+                            "Review the findings against the evidence. Assess likely false positives, missing evidence, "
+                            "and classify each finding as TRUE_POSITIVE, LIKELY_FALSE_POSITIVE, or NEEDS_MANUAL_REVIEW."
+                        ),
+                        evidence_block=f_summary,
+                    )
+                    ai_res = service.reason(req)
+                    if ai_res.ok and ai_res.findings:
+                        for rf in ai_res.findings:
+                            status = "TRUE_POSITIVE"
+                            if "false" in rf.reason.lower() or "mitigated" in rf.reason.lower():
+                                status = "LIKELY_FALSE_POSITIVE"
+                            elif "manual" in rf.reason.lower() or "unclear" in rf.reason.lower():
+                                status = "NEEDS_MANUAL_REVIEW"
+
+                            val_item = {
+                                "rule_id": rf.category or "FINDING-VAL",
+                                "file": rf.file,
+                                "line": rf.line,
+                                "classification": status,
+                                "reasoning": rf.reason,
+                                "confidence": rf.confidence,
+                                "evidence_ids": rf.evidence_ids,
+                            }
+                            ai_validation_breakdown.append(val_item)
+
+                            # Attach explicit validation fields directly to matching finding objects
+                            for f in findings:
+                                if (f.get("file") == rf.file or f.get("file_path") == rf.file) and (f.get("line") == rf.line or f.get("line_number") == rf.line or not rf.line):
+                                    f["validation_verdict"] = status
+                                    f["validation_confidence"] = rf.confidence
+                                    f["validation_reasoning"] = rf.reason
+                        self.logger.info("Grok AI validation produced %d breakdown item(s)", len(ai_res.findings))
+        except Exception as exc:
+            self.logger.warning("Optional Grok AI validation reasoning notice: %s", exc)
+
         new_state = dict(state)
         new_state["patches"] = validated_patches
         new_state["validation_results"] = validation_results
@@ -103,4 +155,7 @@ class ValidationAgent(BaseAgent):
             "grounded_passed": sum(1 for g in grounding_reports if g["passed"]),
         }
         new_state["validation_confidence"] = avg_confidence
+        if ai_validation_breakdown:
+            new_state["ai_validation_breakdown"] = ai_validation_breakdown
         return new_state
+

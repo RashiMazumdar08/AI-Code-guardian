@@ -120,30 +120,39 @@ class Requirement:
     title: str = ""
     severity: str = ""
     evidence_terms: list[str] = field(default_factory=list)
+    area: str = ""
+    required_control: str = ""
+    expected_implementation_behavior: str = ""
+    violation_conditions: str = ""
+    compliant_conditions: str = ""
+    suggested_validation: str = ""
 
 
-def get_business_docs_dir(custom_path: str | Path | None = None) -> Path:
-    """Resolve the business documents directory path."""
+def get_workspace_id(path_or_id: str | Path | None = None) -> str:
+    """Derive a deterministic environment/workspace identifier."""
+    if not path_or_id:
+        return "unbound_workspace"
+    p_str = str(path_or_id).strip()
+    if not p_str or p_str.lower() in ("default", "unbound", "none", "null"):
+        return "unbound_workspace"
+    if re.match(r"^[a-zA-Z0-9_\-]+$", p_str) and not any(c in p_str for c in ("/", "\\", ":")):
+        return p_str.lower()
+    p_res = str(Path(p_str).resolve()).lower()
+    return hashlib.sha256(p_res.encode("utf-8")).hexdigest()[:12]
+
+
+def get_business_docs_dir(custom_path: str | Path | None = None, workspace_id: str | None = None) -> Path:
+    """Resolve the business documents directory path, scoped by workspace/environment."""
     if custom_path:
         p = Path(custom_path)
         p.mkdir(parents=True, exist_ok=True)
         return p
 
+    ws_id = get_workspace_id(workspace_id)
     workspace_root = Path.cwd()
-    possible_paths = [
-        workspace_root / "data" / "business_docs",
-        workspace_root / "AI-Code-Guardian-ai_features" / "data" / "business_docs",
-        Path("/data/business_docs"),
-        Path("C:/data/business_docs"),
-    ]
-
-    for path in possible_paths:
-        if path.exists():
-            return path
-
-    default_dir = workspace_root / "data" / "business_docs"
-    default_dir.mkdir(parents=True, exist_ok=True)
-    return default_dir
+    env_dir = workspace_root / "data" / "business_docs" / ws_id
+    env_dir.mkdir(parents=True, exist_ok=True)
+    return env_dir
 
 
 class DocumentLoader:
@@ -151,9 +160,20 @@ class DocumentLoader:
 
     SUPPORTED_EXTENSIONS = {".md", ".txt", ".json", ".csv", ".yaml", ".yml", ".docx", ".pdf"}
 
-    def __init__(self, docs_dir: str | Path | None = None):
-        self.docs_dir = get_business_docs_dir(docs_dir)
+    def __init__(self, docs_dir: str | Path | None = None, workspace_id: str | None = None):
+        self.docs_dir = get_business_docs_dir(docs_dir, workspace_id)
         self._cache: dict[str, dict[str, Any]] = {}
+
+    def clear_documents(self) -> None:
+        """Clear all documents in this environment's directory and invalidate cache."""
+        if self.docs_dir.exists():
+            for f in self.docs_dir.glob("*"):
+                if f.is_file():
+                    try:
+                        f.unlink()
+                    except Exception as exc:
+                        log.warning(f"Failed to unlink {f}: {exc}")
+        self._cache.clear()
 
     def list_documents(self) -> list[dict[str, Any]]:
         """List all business documents in the directory."""
@@ -286,17 +306,173 @@ class DocumentLoader:
 
         return requirements or None
 
-    def extract_actionable_requirements(self) -> list[Requirement]:
-        """Extract actionable requirements from documents with caching.
-
-        PDFs/DOCX wrap a single sentence across several visual lines, so
-        checking each physical line independently (the previous approach)
-        regularly truncated a requirement mid-clause — losing exactly the
-        word that would have matched. This accumulates lines into a
-        sentence buffer until it hits terminal punctuation before testing
-        it, and skips sections that describe the analysis tool's own
-        behavior rather than a requirement on the scanned application.
+    def _extract_canonical_rule_document(self, lines: list[str], filename: str) -> list[Requirement] | None:
+        """Parse documents structured around canonical rule headings like:
+        'BR-001 — Parameterized SQL Queries [Critical]' or
+        'REQ-001 — Cart Quantity and Inventory Validation'.
+        
+        Extracts exactly the canonical rule sections, enriches metadata from summary tables,
+        splits subsections (Requirement, Expected Evidence, Evidence Terms, Violation/Compliant Conditions, Suggested Validation),
+        and excludes non-rule sections (Business Intent Result Semantics, Evidence isolation, Source basis, Repository scope, Evidence policy).
         """
+        canonical_pattern = re.compile(
+            r"^\s*([A-Z]{2,8}-\d{2,4})\s*[—\-\:\–\−]\s*(.+)$", re.IGNORECASE
+        )
+        non_rule_pattern = re.compile(
+            r"(?i)^\s*(business\s+intent\s+result\s+semantics|evidence\s+isolation|source\s+basis|repository\s+scope|evidence\s+policy|recommended\s+ai\s+code\s+guardian\s+test|source\s+note|repository|testing\s+notes|usage\s+note|appendix|purpose|document\s+metadata)\b"
+        )
+        
+        canonical_indices: list[tuple[int, str, str, str]] = []
+        for idx, ln in enumerate(lines):
+            stripped = ln.strip()
+            m = canonical_pattern.match(stripped)
+            if m:
+                req_id = m.group(1).upper()
+                raw_title = m.group(2).strip()
+                severity = ""
+                sev_match = re.search(r"\[(Critical|High|Medium|Low)\]$", raw_title, re.IGNORECASE)
+                if sev_match:
+                    severity = sev_match.group(1).title()
+                    raw_title = raw_title[:sev_match.start()].strip()
+                canonical_indices.append((idx, req_id, raw_title, severity))
+                
+        if not canonical_indices:
+            return None
+            
+        first_heading_idx = canonical_indices[0][0]
+        
+        # Summary table metadata parsing prior to first canonical detailed heading
+        summary_meta: dict[str, dict[str, str]] = {}
+        summary_lines = [ln.strip() for ln in lines[:first_heading_idx]]
+        for i, ln in enumerate(summary_lines):
+            m_code = re.match(r"^([A-Z]{2,8}-\d{2,4})$", ln, re.IGNORECASE)
+            if m_code:
+                rule_code = m_code.group(1).upper()
+                field1 = summary_lines[i + 1] if i + 1 < len(summary_lines) else ""
+                field2 = summary_lines[i + 2] if i + 2 < len(summary_lines) else ""
+                sev = ""
+                if field1 in ("Critical", "High", "Medium", "Low"):
+                    sev = field1
+                elif field2 in ("Critical", "High", "Medium", "Low"):
+                    sev = field2
+                summary_meta[rule_code] = {"title": field1, "severity": sev}
+                    
+        requirements: list[Requirement] = []
+        for b_idx, (start, req_id, title, heading_severity) in enumerate(canonical_indices):
+            end = canonical_indices[b_idx + 1][0] if b_idx + 1 < len(canonical_indices) else len(lines)
+            
+            # Truncate block if a non-rule section heading appears before next canonical section
+            for l_idx in range(start + 1, end):
+                if non_rule_pattern.match(lines[l_idx].strip()):
+                    end = l_idx
+                    break
+                    
+            block_lines = lines[start + 1:end]
+            req_lines, exp_lines, viol_lines, val_lines = [], [], [], []
+            evidence_terms: list[str] = []
+            curr_sec = "req"
+            
+            for ln in block_lines:
+                s_ln = ln.strip()
+                if not s_ln or s_ln.startswith("Page ") or s_ln.startswith("AI Code Guardian") or ("Business Rules" in s_ln and "fixture" in s_ln):
+                    continue
+
+                req_lbl = re.match(r"(?i)^(?:business\s+)?requirement(?:\s*\:)?(?:\s+(.*))?$", s_ln)
+                exp_lbl = re.match(r"(?i)^expected\s+(?:evidence|implementation\s+behavior|behavior)(?:\s*\:)?(?:\s+(.*))?$", s_ln)
+                ev_lbl = re.match(r"(?i)^evidence\s+terms(?:\s*\:)?(?:\s+(.*))?$", s_ln)
+                viol_lbl = re.match(r"(?i)^violation\s*/?\s*compliant\s+conditions?(?:\s*\:)?(?:\s+(.*))?$", s_ln) or re.match(r"(?i)^violation\s+conditions?(?:\s*\:)?(?:\s+(.*))?$", s_ln)
+                val_lbl = re.match(r"(?i)^suggested\s+validation(?:\s*\:)?(?:\s+(.*))?$", s_ln)
+
+                if req_lbl:
+                    curr_sec = "req"
+                    if req_lbl.group(1):
+                        req_lines.append(req_lbl.group(1).strip())
+                    continue
+                elif exp_lbl:
+                    curr_sec = "exp"
+                    if exp_lbl.group(1):
+                        exp_lines.append(exp_lbl.group(1).strip())
+                    continue
+                elif ev_lbl:
+                    curr_sec = "evidence"
+                    if ev_lbl.group(1):
+                        t_str = ev_lbl.group(1).strip()
+                        evidence_terms.extend(t.strip() for t in re.split(r"[;,]", t_str) if t.strip() and not t.strip().startswith("AI Code Guardian"))
+                    continue
+                elif viol_lbl:
+                    curr_sec = "viol"
+                    if viol_lbl.group(1):
+                        viol_lines.append(viol_lbl.group(1).strip())
+                    continue
+                elif val_lbl:
+                    curr_sec = "val"
+                    if val_lbl.group(1):
+                        val_lines.append(val_lbl.group(1).strip())
+                    continue
+
+                if curr_sec == "req":
+                    req_lines.append(s_ln)
+                elif curr_sec == "exp":
+                    exp_lines.append(s_ln)
+                elif curr_sec == "evidence":
+                    if ";" in s_ln or "," in s_ln:
+                        evidence_terms.extend(t.strip() for t in re.split(r"[;,]", s_ln) if t.strip() and not t.strip().startswith("AI Code Guardian"))
+                    elif not s_ln.startswith("AI Code Guardian") and not s_ln.startswith("Page "):
+                        evidence_terms.append(s_ln)
+                elif curr_sec == "viol":
+                    viol_lines.append(s_ln)
+                elif curr_sec == "val":
+                    val_lines.append(s_ln)
+
+            req_text = " ".join(req_lines).strip()
+            exp_text = " ".join(exp_lines).strip()
+            viol_comp_text = " ".join(viol_lines).strip()
+            val_text = " ".join(val_lines).strip()
+
+            violation_cond = ""
+            compliant_cond = ""
+            if "Violation:" in viol_comp_text or "Compliant:" in viol_comp_text:
+                parts = re.split(r"(?i)\b(Violation:|Compliant:)\b", viol_comp_text)
+                curr_label = ""
+                for p in parts:
+                    p_s = p.strip()
+                    if p_s.lower() == "violation:":
+                        curr_label = "viol"
+                    elif p_s.lower() == "compliant:":
+                        curr_label = "comp"
+                    elif curr_label == "viol":
+                        violation_cond += (" " if violation_cond else "") + p_s
+                    elif curr_label == "comp":
+                        compliant_cond += (" " if compliant_cond else "") + p_s
+                violation_cond = violation_cond.strip()
+                compliant_cond = compliant_cond.strip()
+            else:
+                violation_cond = viol_comp_text
+
+            meta = summary_meta.get(req_id, {})
+            final_severity = heading_severity or meta.get("severity", "")
+
+            requirements.append(Requirement(
+                id=req_id,
+                text=req_text or title,
+                source=filename,
+                line_number=start + 1,
+                raw_text=" ".join(block_lines),
+                title=title,
+                severity=final_severity,
+                evidence_terms=evidence_terms,
+                area=meta.get("area", ""),
+                required_control=meta.get("required_control", ""),
+                expected_implementation_behavior=exp_text,
+                violation_conditions=violation_cond,
+                compliant_conditions=compliant_cond,
+                suggested_validation=val_text,
+            ))
+            
+        return requirements or None
+
+    def extract_actionable_requirements(self) -> list[Requirement]:
+        """Extract actionable requirements from documents with caching."""
         docs = self.list_documents()
         requirements: list[Requirement] = []
         req_counter = 1
@@ -313,6 +489,18 @@ class DocumentLoader:
                 raw_content = _read_document_text(file_path)
                 lines = raw_content.splitlines()
                 doc_requirements: list[Requirement] = []
+
+                canonical = self._extract_canonical_rule_document(lines, doc["filename"])
+                if canonical is not None:
+                    existing_ids = {r.id for r in requirements}
+                    for req in canonical:
+                        if req.id in existing_ids:
+                            req.id = f"{doc['filename']}:{req.id}"
+                        existing_ids.add(req.id)
+                    doc_requirements = canonical
+                    self._cache[cache_key] = {"requirements": doc_requirements}
+                    requirements.extend(doc_requirements)
+                    continue
 
                 structured = self._extract_structured_blocks(lines, doc["filename"])
                 if structured is not None:

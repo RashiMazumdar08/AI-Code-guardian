@@ -42,6 +42,7 @@ import {
   BookText,
   Loader2,
   Play,
+  Search,
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -83,8 +84,8 @@ function PageTransition({ children, tabKey }: { children: React.ReactNode; tabKe
 function SectionHead({ title }: { title: string }) {
   return (
     <div className="flex items-center gap-2.5 mb-5">
-      <span className="w-1.5 h-1.5 rounded-full bg-[#ff5400] flex-shrink-0" />
-      <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-[#f4f4f8]">{title}</h2>
+      <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] flex-shrink-0" />
+      <h2 className="text-xs font-semibold uppercase tracking-[0.1em] text-[#111827]">{title}</h2>
     </div>
   );
 }
@@ -95,11 +96,11 @@ function SectionHead({ title }: { title: string }) {
    report.scan.findings, rendered consistently. */
 function SecuritySummaryTile({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="p-4 rounded-xl bg-[#12131a] border border-white/8">
-      <span className="text-[9px] font-mono font-semibold text-[#8e8e9a] uppercase tracking-wider block">
+    <div className="p-4 rounded-xl bg-white border border-[#174A85] shadow-sm">
+      <span className="text-xs font-semibold text-[#64748B] uppercase tracking-wider block">
         {label}
       </span>
-      <span className={`text-2xl font-bold font-mono mt-1 block ${color}`}>{value}</span>
+      <span className={`text-2xl md:text-3xl font-bold font-mono mt-1 block ${color}`}>{value}</span>
     </div>
   );
 }
@@ -115,11 +116,11 @@ function scoreTile(
   direction: "higher" | "lower"
 ): { label: string; value: number | string; suffix: string; color: string } {
   if (value === null) {
-    return { label, value: "N/A", suffix: "", color: "text-[#8e8e9a]" };
+    return { label, value: "N/A", suffix: "", color: "text-[#64748B]" };
   }
   const good = direction === "higher" ? value >= 80 : value <= 30;
   const warn = direction === "higher" ? value >= 50 : value <= 60;
-  const color = good ? "text-emerald-400" : warn ? "text-amber-400" : "text-red-400";
+  const color = good ? "text-emerald-600" : warn ? "text-amber-600" : "text-red-600";
   return { label, value, suffix: "/100", color };
 }
 
@@ -153,18 +154,19 @@ const REPORTS_PIPELINE_AGENTS = [
 ];
 
 const REPORTS_PIPELINE_STATUS_STYLE: Record<string, { symbol: string; className: string }> = {
-  WAITING:   { symbol: "○", className: "text-[#5c5c68]" },
-  RUNNING:   { symbol: "●", className: "text-[#ff5400] animate-pulse" },
-  COMPLETED: { symbol: "✓", className: "text-emerald-400" },
-  FAILED:    { symbol: "✕", className: "text-red-400" },
-  SKIPPED:   { symbol: "—", className: "text-[#5c5c68]" },
+  WAITING:   { symbol: "○", className: "text-slate-400" },
+  RUNNING:   { symbol: "●", className: "text-blue-600 animate-pulse" },
+  COMPLETED: { symbol: "✓", className: "text-emerald-600" },
+  FAILED:    { symbol: "✕", className: "text-red-600" },
+  SKIPPED:   { symbol: "—", className: "text-slate-400" },
 };
 
 const REPORTS_SEVERITY_BADGE_CLASS: Record<string, string> = {
-  critical: "bg-red-500/10 text-red-400 border-red-500/20",
-  high: "bg-[#ff5400]/10 text-[#ff5400] border-[#ff5400]/20",
-  medium: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  low: "bg-white/8 text-[#8e8e9a] border-white/15",
+  critical: "bg-red-50 text-red-700 border border-red-200",
+  high: "bg-orange-50 text-orange-700 border border-orange-200",
+  medium: "bg-amber-50 text-amber-700 border border-amber-200",
+  low: "bg-blue-50 text-blue-700 border border-blue-200",
+  info: "bg-slate-50 text-slate-700 border border-slate-200",
 };
 
 /* Labels mirror guardian/reporting/report_view_model.py's VERDICT_LABELS
@@ -172,12 +174,12 @@ const REPORTS_SEVERITY_BADGE_CLASS: Record<string, string> = {
    downloaded Security/Agentic/Unified reports, so this card can never
    disagree with the reports it links to. */
 const REPORTS_VERDICT_META: Record<string, { label: string; badgeClass: string; borderClass: string }> = {
-  pass:              { label: "SECURE",             badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25", borderClass: "border-emerald-500/25" },
-  low_risk:          { label: "LOW RISK",           badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25", borderClass: "border-emerald-500/25" },
-  needs_review:      { label: "NEEDS ATTENTION",    badgeClass: "bg-amber-500/10 text-amber-400 border-amber-500/25",      borderClass: "border-amber-500/25" },
-  high_risk:         { label: "HIGH RISK",          badgeClass: "bg-[#ff5400]/10 text-[#ff5400] border-[#ff5400]/25",      borderClass: "border-[#ff5400]/25" },
-  critical:          { label: "CRITICAL RISK",      badgeClass: "bg-red-500/10 text-red-400 border-red-500/25",           borderClass: "border-red-500/25" },
-  validation_failed: { label: "VALIDATION FAILED",  badgeClass: "bg-red-500/10 text-red-400 border-red-500/25",           borderClass: "border-red-500/25" },
+  pass:              { label: "SECURE",             badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200", borderClass: "border-emerald-200" },
+  low_risk:          { label: "LOW RISK",           badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200", borderClass: "border-emerald-200" },
+  needs_review:      { label: "NEEDS ATTENTION",    badgeClass: "bg-amber-50 text-amber-700 border border-amber-200",      borderClass: "border-amber-200" },
+  high_risk:         { label: "HIGH RISK",          badgeClass: "bg-orange-50 text-orange-700 border border-orange-200",   borderClass: "border-orange-200" },
+  critical:          { label: "CRITICAL RISK",      badgeClass: "bg-red-50 text-red-700 border border-red-200",           borderClass: "border-red-200" },
+  validation_failed: { label: "VALIDATION FAILED",  badgeClass: "bg-red-50 text-red-700 border border-red-200",           borderClass: "border-red-200" },
 };
 
 /* Mirrors report_view_model.compute_verdict() exactly (see Python
@@ -228,10 +230,10 @@ function pickReportsKeyIssue(findings: any[], attackPaths: any[]): { finding: an
 // never a second, independently-invented threshold.
 function reportsRiskLevelColorClass(level?: string | null): string {
   const l = String(level || "").toUpperCase();
-  if (l === "CRITICAL" || l === "HIGH") return "text-red-400";
-  if (l === "MEDIUM") return "text-amber-400";
-  if (l === "LOW") return "text-emerald-400";
-  return "text-[#f4f4f8]";
+  if (l === "CRITICAL" || l === "HIGH") return "text-red-600";
+  if (l === "MEDIUM") return "text-amber-600";
+  if (l === "LOW") return "text-emerald-600";
+  return "text-slate-900";
 }
 
 const REPORTS_AGENTIC_STATUS_LABEL: Record<string, string> = {
@@ -290,10 +292,14 @@ function AppInner() {
     if (!report) return;
     let cancelled = false;
     setReportsBiLoading(true);
+    const activeWsId = report?.repository?.root || report?.repository?.repo_path || report?.scan?.repository || currentScanId;
     fetch(`${API_BASE}/api/business-intent/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ findings: report?.scan?.findings || [] }),
+      body: JSON.stringify({
+        workspace_id: activeWsId,
+        findings: report?.scan?.findings || []
+      }),
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad response"))))
       .then((data) => { if (!cancelled) setReportsBiResult(data); })
@@ -711,48 +717,48 @@ function AppInner() {
       {/* Lightweight custom toast -- no toast library exists in this repo.
           Edge-triggered (see the useEffect above), auto-dismisses after 6s. */}
       {toast && (
-        <div className="fixed bottom-5 right-5 z-[100] max-w-sm px-4 py-3 rounded-xl bg-[#12131a] border border-violet-500/30 shadow-[0_0_24px_rgba(139,92,246,0.15)] animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+        <div className="fixed bottom-5 right-5 z-[100] max-w-sm px-4 py-3 rounded-xl bg-white border border-blue-200 shadow-lg animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
           <div className="flex items-start gap-2.5">
-            <span className="mt-0.5 shrink-0 text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-500/25">AI</span>
-            <p className="text-[11px] font-mono text-[#f4f4f8] leading-snug">{toast}</p>
+            <span className="mt-0.5 shrink-0 text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">AI</span>
+            <p className="text-[11px] font-mono text-[#111827] leading-snug">{toast}</p>
           </div>
         </div>
       )}
 
-      <div className="flex h-screen overflow-hidden text-[#f4f4f8] relative z-10">
+      <div className="flex h-screen overflow-hidden text-[#111827] relative z-10">
 
-        {/* ── Sidebar ─────────────────────────────── */}
+        {/* ── Sidebar (Deep Slate Theme #0F172A) ─────────────────────────────── */}
         <aside
-          className={`bg-[#08090d] border-r border-white/7 shrink-0 flex flex-col z-20 overflow-hidden transition-all duration-300 ease-in-out ${
+          className={`bg-[#0F172A] border-r border-slate-800 text-white shrink-0 flex flex-col z-20 overflow-hidden transition-all duration-300 ease-in-out ${
             sidebarOpen ? "w-56" : "w-0"
           }`}
         >
           {/* Brand */}
-          <div className="px-5 pt-5 pb-4 border-b border-white/7">
+          <div className="px-5 pt-5 pb-4 border-b border-slate-800">
             <button onClick={() => navigateTo("cyber_dashboard")} className="flex items-center gap-2.5 group w-full">
-              <div className="w-8 h-8 rounded-lg bg-[#12131a] border border-[#ff5400]/30 flex items-center justify-center shrink-0 group-hover:border-[#ff5400]/60 transition-colors">
-                <Shield className="w-4 h-4 text-[#ff5400]" />
+              <div className="w-8 h-8 rounded-lg bg-[#1E293B] border border-slate-700 flex items-center justify-center shrink-0 group-hover:border-[#2563EB] transition-colors">
+                <Shield className="w-4 h-4 text-[#2563EB]" />
               </div>
               <div className="text-left">
-                <div className="text-[11px] font-mono font-bold tracking-widest text-[#f4f4f8] leading-tight">
-                  AI CODE <span className="text-[#ff5400]">GUARDIAN</span>
+                <div className="text-sm font-bold tracking-wider text-white leading-tight">
+                  AI CODE <span className="text-[#2563EB]">GUARDIAN</span>
                 </div>
-                <div className="text-[9px] font-mono text-[#8e8e9a] mt-0.5">v2.1.0 · PLATFORM</div>
+                <div className="text-xs text-slate-400 mt-0.5">v2.1.0 · PLATFORM</div>
               </div>
             </button>
           </div>
 
           {/* Live status chip */}
-          <div className="px-5 py-3 border-b border-white/7">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/8 border border-emerald-500/20">
+          <div className="px-5 py-3 border-b border-slate-800">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#1E293B] border border-slate-800">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-subtle shrink-0" />
-              <span className="text-[9px] font-mono font-semibold text-emerald-400 tracking-wider">ENGINE ONLINE</span>
+              <span className="text-xs font-medium text-emerald-400 tracking-wider">ENGINE ONLINE</span>
             </div>
           </div>
 
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-            <div className="text-[9px] font-mono font-semibold text-[#8e8e9a]/60 uppercase tracking-[0.25em] px-2 mb-3">
+            <div className="text-xs font-medium text-slate-400 uppercase tracking-wider px-2 mb-3">
               Navigation
             </div>
             {TABS.map((tab) => {
@@ -762,62 +768,60 @@ function AppInner() {
                 <button
                   key={tab.id}
                   onClick={() => navigateTo(tab.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[11px] font-mono font-semibold transition-all duration-200 ease-out active:scale-[0.98] relative group ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[15px] transition-all duration-200 ease-out active:scale-[0.98] relative group ${
                     isActive
-                      ? "bg-[#ff5400]/12 text-[#ff5400] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]"
-                      : "text-[#8e8e9a] hover:text-[#f4f4f8] hover:bg-white/6"
+                      ? "bg-[#1E293B] text-white font-semibold shadow-xs"
+                      : "text-slate-300 font-medium hover:text-white hover:bg-[#1E293B]/70"
                   }`}
                 >
                   {/* Active left bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r-full bg-[#ff5400] shadow-[0_0_8px_#ff5400] transition-all duration-200" />
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-[#2563EB] transition-all duration-200" />
                   )}
-                  <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-[#ff5400]" : "text-[#8e8e9a] group-hover:text-[#f4f4f8]"} transition-colors duration-200`} />
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[#2563EB]" : "text-slate-400 group-hover:text-white"} transition-colors duration-200`} />
                   <span className="truncate tracking-wide">{tab.label}</span>
-                  {/* Notification badges (Section 8) -- amber dot while a run
-                      is in flight, a real count once results exist and this
-                      tab hasn't been opened since. */}
+                  {/* Notification badges */}
                   {(tab.id === "security_compliance" || tab.id === "business_intent") &&
                     (agentic.workflowStatus === "running" || agentic.workflowStatus === "starting") && (
                       <span title="Agentic analysis in progress…" className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
                   )}
                   {tab.id === "security_compliance" && agenticMatchesCurrentScan && agentic.workflowStatus === "completed" && securityAiUnseen && aiThreatFindingCount > 0 && (
-                    <span title={`${aiThreatFindingCount} finding(s) have AI threat analysis`} className="flex items-center gap-1 text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 shrink-0">
+                    <span title={`${aiThreatFindingCount} finding(s) have AI threat analysis`} className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0">
                       ● {aiThreatFindingCount}
                     </span>
                   )}
                   {tab.id === "business_intent" && agenticMatchesCurrentScan && agentic.workflowStatus === "completed" && businessAiUnseen && aiBusinessViolationCount > 0 && (
-                    <span title={`${aiBusinessViolationCount} AI business violation(s) detected`} className="flex items-center gap-1 text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 shrink-0">
+                    <span title={`${aiBusinessViolationCount} AI business violation(s) detected`} className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0">
                       ● {aiBusinessViolationCount}
                     </span>
                   )}
-                  {isActive && <ChevronRight className="w-3 h-3 ml-auto shrink-0 text-[#ff5400]/60 animate-in fade-in slide-in-from-left-1 duration-200" />}
+                  {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto shrink-0 text-[#2563EB] animate-in fade-in slide-in-from-left-1 duration-200" />}
                 </button>
               );
             })}
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-white/7">
+          <div className="p-4 border-t border-slate-800">
             <button
               onClick={() => handleDownloadReport("zip")}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg glass-button text-[10px] font-mono font-bold tracking-wider transition"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold tracking-wide transition shadow-sm"
             >
-              <Download className="w-3.5 h-3.5" /> DOWNLOAD
+              <Download className="w-4 h-4" /> Download Report
             </button>
           </div>
         </aside>
 
-        {/* ── Main ─────────────────────────────────── */}
-        <main className="flex-1 overflow-y-auto bg-[#0B0F19]">
+        {/* ── Main Canvas (#F8FAFC Light Cool Gray) ─────────────────────────────────── */}
+        <main className="flex-1 overflow-y-auto bg-[#F8FAFC]">
 
-          {/* Sticky top bar */}
-          <header className="sticky top-0 z-10 bg-[#0B0F19]/95 backdrop-blur-sm border-b border-white/7 px-6 py-3 flex items-center justify-between">
+          {/* Sticky top bar (Deep Slate Header #0F172A) */}
+          <header className="sticky top-0 z-10 bg-[#0F172A] border-b border-slate-800 px-6 py-3 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
               {/* Sidebar toggle */}
               <button
                 onClick={() => setSidebarOpen((v) => !v)}
-                className="flex items-center justify-center w-7 h-7 rounded-md text-[#8e8e9a] hover:text-[#f4f4f8] hover:bg-white/6 transition-all duration-150"
+                className="flex items-center justify-center w-7 h-7 rounded-md text-slate-300 hover:text-white hover:bg-[#1E293B] transition-all duration-150"
                 title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
               >
                 {sidebarOpen
@@ -825,21 +829,34 @@ function AppInner() {
                   : <PanelLeftOpen className="w-4 h-4" />}
               </button>
               {/* Breadcrumb */}
-              <span className="text-[#8e8e9a] font-mono text-[10px]">Platform</span>
-              <ChevronRight className="w-3 h-3 text-[#8e8e9a]/50" />
-              <span className="text-[#f4f4f8] font-mono text-[10px] font-semibold">
+              <span className="text-slate-400 text-[15px] font-sans font-medium leading-[1.4]">Platform</span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-white text-[28px] font-sans font-bold leading-[1.25]">
                 {TABS.find(t => t.id === activeTab)?.label}
               </span>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Header Right & Quick Search */}
+            <div className="flex items-center gap-4">
+              <div className="relative hidden md:block w-72">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search repositories, findings, or files... ⌘K"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 bg-[#1E293B] border border-slate-700 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#2563EB] transition"
+                />
+              </div>
+
               {/* Scan stats pills */}
               <div className="hidden sm:flex items-center gap-2">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/8 border border-red-500/20 text-[9px] font-mono font-semibold text-red-400">
-                  <AlertTriangle className="w-2.5 h-2.5" />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/15 border border-red-500/30 text-xs font-semibold text-red-400">
+                  <AlertTriangle className="w-3 h-3 text-red-400" />
                   {critical} CRITICAL
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ff5400]/8 border border-[#ff5400]/20 text-[9px] font-mono font-semibold text-[#ff5400]">
-                  <Zap className="w-2.5 h-2.5" />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-xs font-semibold text-orange-400">
+                  <Zap className="w-3 h-3 text-orange-400" />
                   {high} HIGH
                 </div>
               </div>
@@ -875,23 +892,23 @@ function AppInner() {
                       Agentic analysis is purely an enrichment pass over
                       these findings, never a second, independent scan. */}
                   {currentScanId && !["FETCHING", "WALKING", "PARSING", "SCANNING"].includes(scanState.scanPhase) && (
-                    <div className="rounded-xl bg-[#12131a] border border-violet-500/25 p-4 flex items-center justify-between flex-wrap gap-3">
+                    <div className="rounded-xl bg-white border border-blue-200 p-4 flex items-center justify-between flex-wrap gap-3 shadow-sm">
                       <div>
-                        <p className="text-[11px] font-mono font-bold text-[#f4f4f8]">
+                        <p className="text-[14px] font-sans font-semibold leading-[1.4] text-[#111827]">
                           Deterministic scan complete — {findings.length} finding{findings.length === 1 ? "" : "s"}.
                         </p>
-                        <p className="text-[9.5px] font-mono text-[#8e8e9a] mt-0.5">
+                        <p className="text-[13px] font-sans font-normal leading-[1.4] text-[#64748B] mt-0.5">
                           Run the multi-agent workflow to add threat modeling, business impact, and validated patches.
                         </p>
                       </div>
                       {agentic.workflowStatus === "running" || agentic.workflowStatus === "starting" ? (
-                        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wide bg-violet-500/10 text-violet-300 border border-violet-500/20">
+                        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wide bg-blue-50 text-blue-700 border border-blue-200">
                           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Running…
                         </span>
                       ) : (
                         <button
                           onClick={runAgenticForCurrentScan}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wide bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 transition-colors"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wide bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] hover:bg-[#DBEAFE] transition-colors"
                         >
                           <Play className="w-3.5 h-3.5" /> Run Agentic Analysis on These Findings
                         </button>
@@ -905,7 +922,7 @@ function AppInner() {
               {activeTab === "mindmap" && (
                 <div className="space-y-4">
                   <SectionHead title="Code Mind Map & AST Topology" />
-                  <p className="text-xs font-mono text-[#8e8e9a] -mt-3 mb-3">
+                  <p className="text-xs font-mono text-[#64748B] -mt-3 mb-3">
                     Interactive graph visualizing code structure, module dependencies, function call graphs, and risk findings.
                   </p>
                   <CodeMindMap data={mindMapData} />
@@ -917,34 +934,34 @@ function AppInner() {
                 <div className="space-y-5">
 
                   {/* SECURITY ASSESSMENT HEADER */}
-                  <div className="flex flex-wrap items-center justify-between gap-4 bg-[#12131a] border border-white/8 p-4 rounded-xl">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-lg bg-[#ff5400]/10 border border-[#ff5400]/25 flex items-center justify-center text-[#ff5400] shrink-0">
+                  <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-[#174A85] p-5 rounded-xl shadow-sm mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[#EAF3FF] border border-[#AFCBEB] flex items-center justify-center text-[#0064D8] shrink-0">
                         <Lock className="w-4 h-4" />
                       </div>
                       <div>
-                        <h2 className="text-xs font-mono font-bold text-[#f4f4f8] tracking-wide">SECURITY ASSESSMENT</h2>
-                        <p className="text-[10px] font-mono text-[#8e8e9a] mt-0.5">What did we detect? — deterministic findings, source of truth</p>
+                        <h2 className="text-[16px] font-sans font-bold text-[#111827] leading-[1.3] tracking-tight">SECURITY ASSESSMENT</h2>
+                        <p className="text-[13px] font-sans font-normal text-[#64748B] mt-0.5 leading-[1.5]">What did we detect? — deterministic findings, source of truth</p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] font-mono">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                       <div>
-                        <div className="text-[#5c5c68] uppercase tracking-wider">Repository</div>
-                        <div className="text-[#f4f4f8] font-semibold mt-0.5">{repositoryLabel}</div>
+                        <div className="text-[11px] font-mono font-semibold text-[#64748B] uppercase tracking-wider">Repository</div>
+                        <div className="text-[13px] font-mono font-semibold text-[#111827] mt-0.5">{repositoryLabel}</div>
                       </div>
                       <div>
-                        <div className="text-[#5c5c68] uppercase tracking-wider">Scan ID</div>
-                        <div className="text-[#f4f4f8] font-semibold mt-0.5">{currentScanId || "Not available from the scan"}</div>
+                        <div className="text-[11px] font-mono font-semibold text-[#64748B] uppercase tracking-wider">Scan ID</div>
+                        <div className="text-[13px] font-mono font-semibold text-[#111827] mt-0.5">{currentScanId || "Not available from the scan"}</div>
                       </div>
                       <div>
-                        <div className="text-[#5c5c68] uppercase tracking-wider">Status</div>
-                        <div className={`font-semibold mt-0.5 ${report ? "text-emerald-400" : "text-[#8e8e9a]"}`}>
+                        <div className="text-[11px] font-mono font-semibold text-[#64748B] uppercase tracking-wider">Status</div>
+                        <div className={`text-[13px] font-mono font-semibold mt-0.5 ${report ? "text-emerald-600" : "text-[#64748B]"}`}>
                           {report ? "Completed" : "No scan run yet"}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[#5c5c68] uppercase tracking-wider">Scanned</div>
-                        <div className="text-[#f4f4f8] font-semibold mt-0.5">{scanTimestampLabel}</div>
+                        <div className="text-[11px] font-mono font-semibold text-[#64748B] uppercase tracking-wider">Scanned</div>
+                        <div className="text-[13px] font-mono font-semibold text-[#111827] mt-0.5">{scanTimestampLabel}</div>
                       </div>
                     </div>
                   </div>
@@ -968,6 +985,20 @@ function AppInner() {
                 <BusinessIntentPage
                   report={report}
                   agenticBusinessViolations={agentic.result?.business_analysis.violations || []}
+                  aiBusinessInsights={
+                    agentic.result?.business_analysis?.ai_business_insights
+                    || agentic.result?.ai_business_insights
+                    || agentic.state?.ai_business_insights
+                    || []
+                  }
+                  grokStatus={
+                    agentic.result?.business_analysis?.results?.grok_status
+                    || agentic.state?.business_intent_results?.grok_status
+                  }
+                  businessAgentReason={
+                    agentic.result?.business_analysis?.results?.agent_reason
+                    || agentic.state?.business_intent_results?.agent_reason
+                  }
                   businessCriticalChains={(agentic.result?.risk_fusion.correlated_chains || []).filter(
                     (c: any) => c.business_criticality === "HIGH" || c.business_criticality === "CRITICAL"
                   )}
@@ -975,6 +1006,7 @@ function AppInner() {
                   hasRunForThisScan={agenticMatchesCurrentScan}
                   agenticScanId={agentic.scanId}
                   sourceScanId={agentic.sourceScanId}
+                  currentScanId={currentScanId}
                   onRunAgentic={runAgenticForCurrentScan}
                   onViewFinding={viewFindingInSecurity}
                 />
@@ -1012,11 +1044,11 @@ function AppInner() {
       {/* Clean Floating AI Chatbot FAB */}
       <button
         onClick={() => setIsChatDrawerOpen(true)}
-        className="fixed bottom-6 right-6 z-40 group flex items-center justify-center w-[52px] h-[52px] rounded-2xl bg-[#0f131f]/90 backdrop-blur-md border border-white/12 hover:border-[#ff5400]/60 text-[#f4f4f8] shadow-[0_4px_24px_rgba(0,0,0,0.4)] hover:shadow-[0_0_24px_rgba(255,84,0,0.35)] hover:scale-105 active:scale-95 transition-all duration-200"
+        className="fixed bottom-6 right-6 z-40 group flex items-center justify-center w-[52px] h-[52px] rounded-2xl bg-white border border-[#E2E8F0] hover:border-blue-300 text-[#2563EB] shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
         title="Chat with AI Security Assistant"
       >
-        <Bot className="w-6 h-6 text-[#ff5400] group-hover:scale-110 transition-transform duration-200" />
-        <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#0B0F19] rounded-full" />
+        <Bot className="w-6 h-6 text-[#2563EB] group-hover:scale-110 transition-transform duration-200" />
+        <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
       </button>
 
       {/* Drawers */}

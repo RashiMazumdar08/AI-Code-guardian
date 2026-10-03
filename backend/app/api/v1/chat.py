@@ -100,6 +100,9 @@ def _sync_latest_scan(copilot: AISecurityCopilot, client_report: Optional[dict] 
         logger.warning("Failed to sync scan into copilot context: %s", exc)
 
 
+from guardian.llm.rate_limit_handler import is_rate_limit_error, format_rate_limit_warning
+
+
 @router.post("/completions", response_model=ChatCompletionResponse)
 async def chat_completion(request: ChatCompletionRequest):
     try:
@@ -109,7 +112,6 @@ async def chat_completion(request: ChatCompletionRequest):
 
         copilot = await _get_copilot()
         _sync_latest_scan(copilot, client_report=request.report)
-
 
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(None, copilot.ask, user_query)
@@ -129,6 +131,15 @@ async def chat_completion(request: ChatCompletionRequest):
         raise
     except Exception as e:
         logger.error(f"Chat completion failed: {str(e)}", exc_info=True)
+        if is_rate_limit_error(e):
+            user_query = (request.messages[-1].content if request.messages else "").strip()
+            msg = format_rate_limit_warning(e, user_query=user_query, scan_report=request.report)
+            return ChatCompletionResponse(
+                persona=request.persona,
+                reply=msg,
+                tools_used=["rate_limit_handler"],
+                intent="GENERAL_SECURITY",
+            )
         raise HTTPException(status_code=500, detail=f"Chat completion error: {str(e)}")
 
 

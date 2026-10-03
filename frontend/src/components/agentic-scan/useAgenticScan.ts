@@ -64,6 +64,28 @@ export function useAgenticScan() {
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
+  // Restore persisted agentic report on mount if it matches the current active scan
+  useEffect(() => {
+    try {
+      const activeScanId = sessionStorage.getItem("guardian_active_scan_id");
+      const raw = sessionStorage.getItem("guardian_agentic_report");
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached && cached.sourceScanId && (!activeScanId || cached.sourceScanId === activeScanId)) {
+          setScanId(cached.scanId || null);
+          setSourceScanId(cached.sourceScanId);
+          if (cached.state) setState(cached.state);
+          if (cached.result) setResult(cached.result);
+          if (cached.deterministicBaseline) setDeterministicBaseline(cached.deterministicBaseline);
+          if (cached.agenticSummary) setAgenticSummary(cached.agenticSummary);
+          setWorkflowStatus("completed");
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
   const reset = useCallback(() => {
     eventSourceRef.current?.close();
     eventSourceRef.current = null;

@@ -67,16 +67,15 @@ class NemotronLLM(BaseLLM):
     def config(self) -> LLMConfig:
         return self._cfg
 
-    # -- public API ------------------------------------------------------
     def chat(self, messages: list[dict], *, temperature: Optional[float] = None,
-             max_tokens: Optional[int] = None) -> LLMResponse:
-        payload = self._payload(messages, temperature, max_tokens, stream=False)
+             max_tokens: Optional[int] = None, reasoning_effort: Optional[str] = None) -> LLMResponse:
+        payload = self._payload(messages, temperature, max_tokens, reasoning_effort, stream=False)
         t0 = time.time()
         raw = self._request_with_retry(payload, stream=False)
         latency = (time.time() - t0) * 1000
 
         content, finish, usage = self._extract(raw)
-        if not content.strip():
+        if not content.strip() and finish not in ("length", "stop"):
             raise LLMError("Nemotron returned an empty response "
                            f"(finish_reason={finish!r}). Retry or reduce prompt size.")
 
@@ -121,8 +120,8 @@ class NemotronLLM(BaseLLM):
         return ResponseParser().parse(response.content)
 
     def chat_stream(self, messages: list[dict], *, temperature: Optional[float] = None,
-                    max_tokens: Optional[int] = None) -> Generator[str, None, None]:
-        payload = self._payload(messages, temperature, max_tokens, stream=True)
+                    max_tokens: Optional[int] = None, reasoning_effort: Optional[str] = None) -> Generator[str, None, None]:
+        payload = self._payload(messages, temperature, max_tokens, reasoning_effort, stream=True)
         if self._sdk is not None:
             yield from self._stream_sdk(payload)
         else:
@@ -162,7 +161,7 @@ class NemotronLLM(BaseLLM):
                 "Accept": "application/json"}
 
     def _payload(self, messages: list[dict], temperature: Optional[float],
-                 max_tokens: Optional[int], stream: bool) -> dict:
+                 max_tokens: Optional[int], reasoning_effort: Optional[str] = None, stream: bool = False) -> dict:
         payload = {
             "model": self._cfg.model,
             "messages": messages,
@@ -171,6 +170,8 @@ class NemotronLLM(BaseLLM):
             "top_p": self._cfg.top_p,
             "stream": stream,
         }
+        if reasoning_effort:
+            payload["reasoning_effort"] = reasoning_effort
         # Nemotron 3 Ultra reasoning / chain-of-thought support
         if self._cfg.enable_thinking:
             payload["extra_body"] = {
@@ -185,7 +186,9 @@ class NemotronLLM(BaseLLM):
         for attempt in range(1, self._cfg.max_retries + 1):
             try:
                 return self._request_once(payload)
-            except (LLMRateLimitError, LLMTimeoutError) as exc:
+            except LLMRateLimitError:
+                raise  # Quota / rate limit exhausted: fail fast without retrying
+            except LLMTimeoutError as exc:
                 last_exc = exc
             except LLMAuthError:
                 raise  # credentials will not fix themselves; fail fast
@@ -208,7 +211,7 @@ class NemotronLLM(BaseLLM):
 
     def _request_sdk(self, payload: dict) -> dict:
         try:
-            completion = self._sdk.chat.completions.create(**payload)
+            completion = self._sdk.chat.completions.create(timeout=self._cfg.timeout, **payload)
             return completion.model_dump()
         except Exception as exc:  # noqa: BLE001 — normalise SDK errors
             raise self._classify(exc) from exc

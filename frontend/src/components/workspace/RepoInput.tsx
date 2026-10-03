@@ -26,22 +26,22 @@ export default function RepoInput({ onScan }: RepoInputProps) {
     switch (scanPhase) {
       case "COMPLETE":
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-semibold select-none">
-            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[12px] font-sans font-semibold leading-[1.3] select-none">
+            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
             RESULTS READY
           </div>
         );
       case "AGENTIC_RUNNING":
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ff5400]/15 border border-[#ff5400]/40 text-[#ff5400] text-[10px] font-mono font-semibold select-none animate-pulse">
-            <Sparkles className="h-3 w-3 text-[#ff5400]" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] text-[#2563EB] text-[12px] font-sans font-semibold leading-[1.3] select-none animate-pulse">
+            <Sparkles className="h-3 w-3 text-[#2563EB]" />
             AI ANALYSIS ACTIVE
           </div>
         );
       case "AGENTIC_COMPLETE":
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-mono font-semibold select-none">
-            <Sparkles className="h-3 w-3 text-amber-300" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[12px] font-sans font-semibold leading-[1.3] select-none">
+            <Sparkles className="h-3 w-3 text-amber-600" />
             AI ENRICHMENT READY
           </div>
         );
@@ -52,8 +52,8 @@ export default function RepoInput({ onScan }: RepoInputProps) {
       case "IDLE":
       default:
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/8 border border-white/20 text-[#f4f4f8] text-[10px] font-mono font-semibold select-none">
-            <Shield className="h-3 w-3 text-[#8e8e9a]" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F8FAFC] border border-slate-200 text-slate-600 text-[12px] font-sans font-semibold leading-[1.3] select-none">
+            <Shield className="h-3 w-3 text-slate-500" />
             DETERMINISTIC SCAN
           </div>
         );
@@ -61,23 +61,23 @@ export default function RepoInput({ onScan }: RepoInputProps) {
   };
 
   return (
-    <div className="w-full bg-[#12131a] border border-white/8 text-[#f4f4f8] rounded-xl overflow-hidden shadow-lg">
-      <div className="p-4">
+    <div className="w-full bg-white border border-slate-200 text-slate-900 rounded-2xl overflow-hidden shadow-sm">
+      <div className="p-6">
         <form onSubmit={handleSubmit} className="flex flex-wrap md:flex-nowrap items-end gap-4">
 
           {/* URL Input */}
           <div className="flex-1 space-y-2">
-            <label htmlFor="targetInput" className="text-[11px] font-mono font-semibold tracking-wider text-[#8e8e9a] uppercase flex items-center gap-2">
-              <FolderGit2 className="h-3.5 w-3.5 text-[#ff5400]" />
+            <label htmlFor="targetInput" className="text-[13px] font-sans font-semibold tracking-[0.04em] leading-[1.4] text-[#64748B] uppercase flex items-center gap-2">
+              <FolderGit2 className="h-3.5 w-3.5 text-[#2563EB]" />
               GITHUB REPOSITORY URL
             </label>
             <div className="relative flex items-center">
-              <Search className="absolute left-3 h-3.5 w-3.5 text-[#8e8e9a]" />
+              <Search className="absolute left-3 h-3.5 w-3.5 text-[#94A3B8]" />
               <input
                 id="targetInput"
                 type="text"
                 placeholder="https://github.com/user/repository"
-                className="w-full h-10 pl-10 pr-3 rounded-lg glass-input text-sm font-mono placeholder:text-[#8e8e9a]/50 focus:outline-none disabled:opacity-50"
+                className="w-full h-10 pl-10 pr-3 rounded-lg glass-input text-[16px] font-sans font-normal leading-[1.5] text-slate-900 placeholder:text-[#94A3B8] focus:outline-none disabled:opacity-50"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 disabled={isScanning}
@@ -87,8 +87,8 @@ export default function RepoInput({ onScan }: RepoInputProps) {
 
           {/* Dynamic Status Badges */}
           <div className="flex items-center gap-2.5 pb-1 shrink-0">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/8 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-semibold select-none">
-              <CheckCircle2 className="h-3 w-3" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[12px] font-sans font-semibold leading-[1.3] select-none">
+              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
               GITHUB URL
             </div>
 
@@ -99,7 +99,7 @@ export default function RepoInput({ onScan }: RepoInputProps) {
           <button
             type="submit"
             disabled={!target.trim() || isScanning}
-            className="h-10 px-5 py-2 rounded-lg flex items-center justify-center w-full md:w-36 glass-button font-mono text-xs font-bold tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+            className="h-10 px-5 py-2 rounded-lg flex items-center justify-center w-full md:w-36 glass-button font-sans text-[14px] font-semibold leading-[1.4] tracking-normal transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
           >
             {isScanning ? (
               <>

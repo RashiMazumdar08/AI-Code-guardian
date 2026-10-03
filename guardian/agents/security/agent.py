@@ -26,6 +26,7 @@ from typing import Any, Dict, List
 
 from guardian.agents.base.agent import BaseAgent
 from guardian.agents.shared.context import SecurityContext
+from guardian.llm.rate_limit_handler import classify_llm_error
 from guardian.orchestrator.state import AgentWorkflowState
 
 
@@ -122,6 +123,135 @@ class SecurityAgent(BaseAgent):
 
         self._generated_evidence_ids = generated_evidence_ids
 
+        # Optional Grok AI reasoning pass for semantic security insights
+        ai_insights: List[Dict[str, Any]] = []
+        grok_status: str = "SKIPPED"
+        agent_reason: str = "The deterministic security analysis produced a sufficiently conclusive baseline, so additional AI reasoning was not invoked."
+
+        try:
+            from guardian.llm.config import LLMConfig
+            cfg = LLMConfig.from_env()
+            if cfg.is_security_ai_enabled():
+                has_high_risk_findings = any(f.get("severity", "MEDIUM").upper() in ("CRITICAL", "HIGH") or f.get("confidence", 1.0) < 0.70 for f in findings)
+                has_auth_sql_keywords = any(any(kw in str(f.get("rule_id", "") + f.get("title", "")).lower() for kw in ["auth", "sql", "exec", "cmd", "secret", "token"]) for f in findings)
+
+                ws_profiles = []
+                try:
+                    from guardian.intent.matcher.rule_matcher import RuleMatcher
+                    repo_p = Path(repo_path_str) if repo_path_str else None
+                    ws_profiles = RuleMatcher._profiles_from_workspace(repo_p)
+                except Exception:
+                    pass
+
+                should_call_grok = (len(findings) == 0 and len(ws_profiles) > 0) or has_high_risk_findings or has_auth_sql_keywords
+                if should_call_grok:
+                    from guardian.reasoning.gateway import ReasoningGateway, ReasoningRequest
+                    service = ReasoningGateway(config=cfg)
+                    if service.configured:
+                        ev_lines = []
+                        for ev in evidence[:10]:
+                            ev_id = ev.get("id") or ev.get("evidence_id") or "E1"
+                            ev_lines.append(
+                                f"[{ev_id}] file: {ev.get('file', '')}:{ev.get('line', 0)} "
+                                f"snippet: {ev.get('snippet', '') or ev.get('code_snippet', '')}"
+                            )
+
+                        if ws_profiles:
+                            # Sort workspace profiles by general security relevance score descending
+                            sorted_profiles = sorted(
+                                ws_profiles,
+                                key=lambda p: getattr(p, "security_score", 0.0),
+                                reverse=True
+                            )
+                            existing_files_lines = {(ev.get("file"), ev.get("line")) for ev in evidence}
+                            candidate_profiles = [p for p in sorted_profiles if (p.file, p.line) not in existing_files_lines]
+
+                            for idx, wp in enumerate(candidate_profiles[:5]):
+                                wp_ev_id = f"E{len(ev_lines)+1}"
+                                snippet = getattr(wp, "code_snippet", "")
+                                snippet_block = f"\nSource Snippet:\n{snippet}" if snippet else ""
+                                ev_lines.append(
+                                    f"[{wp_ev_id}] file: {wp.file}:{wp.line} function: {wp.function_name} "
+                                    f"actions: {','.join(wp.actions[:3])} controls: {','.join(wp.controls[:3])}"
+                                    f"{snippet_block}"
+                                )
+
+                        ev_block = "\n".join(ev_lines) if ev_lines else "[E1] General repository security context"
+
+                        req = ReasoningRequest(
+                            task="security_reasoning",
+                            agent="security",
+                            scan_id=state.get("scan_id", ""),
+                            instruction=(
+                                "Analyze the deterministic security evidence and identify potential semantic gaps, "
+                                "complex framework-specific vulnerabilities, or exploitability risks. "
+                                "Cite provided evidence IDs."
+                            ),
+                            evidence_block=ev_block,
+                            max_tokens=400,
+                        )
+                        ai_res = service.reason(req)
+                        if ai_res.ok:
+                            grok_status = "COMPLETED"
+                            if ai_res.findings:
+                                agent_reason = "AI Security Analysis completed successfully with verified semantic findings."
+                                for rf in ai_res.findings:
+                                    ai_f_id = f"ai-sec-{uuid.uuid4().hex[:8]}"
+                                    ai_ev_id = rf.evidence_ids[0] if rf.evidence_ids else "E1"
+                                    ai_finding = {
+                                        "finding_id": ai_f_id,
+                                        "rule_id": f"AI-SEC-{(rf.category or 'SEMANTIC')[:15].upper()}",
+                                        "title": rf.title or rf.category or "Semantic Security Vulnerability",
+                                        "severity": rf.severity.upper() if rf.severity else "MEDIUM",
+                                        "category": rf.category or "security",
+                                        "file": rf.file or "app.py",
+                                        "line": rf.line or 1,
+                                        "file_path": rf.file or "app.py",
+                                        "line_number": rf.line or 1,
+                                        "snippet": rf.reason or "",
+                                        "description": rf.reason,
+                                        "recommendation": rf.recommendation,
+                                        "confidence": min(rf.confidence or 0.8, 0.9),
+                                        "evidence_ids": [ai_ev_id],
+                                        "evidence_id": ai_ev_id,
+                                        "source": "AI_VALIDATED",
+                                        "engine": "grok_security_reasoning",
+                                    }
+                                    findings.append(ai_finding)
+                                    ai_insights.append(ai_finding)
+                                    self.logger.info("Added Grok AI security finding: %s", ai_finding["rule_id"])
+                            else:
+                                agent_reason = "SecurityAgent executed successfully and verified no additional semantic AI security findings."
+                        else:
+                            err_text = getattr(ai_res, "error", None) or getattr(ai_res, "error_message", None) or ""
+                            status_type = classify_llm_error(err_text)
+                            if status_type == "SKIPPED_BUDGET":
+                                grok_status = "SKIPPED_BUDGET"
+                                agent_reason = "AI Security Analysis was skipped to preserve token budget for other scan priorities. Deterministic baseline findings are unaffected."
+                            elif status_type == "PROVIDER_DAILY_QUOTA":
+                                grok_status = "PROVIDER_DAILY_QUOTA"
+                                agent_reason = "AI reasoning could not run because the LLM provider's daily token quota (TPD) was exhausted. Deterministic findings are fully preserved."
+                            elif status_type == "RATE_LIMITED":
+                                grok_status = "RATE_LIMITED"
+                                agent_reason = "AI Security Analysis is temporarily rate limited by the provider (TPM limit). Deterministic findings are fully preserved."
+                            else:
+                                grok_status = "PROVIDER_UNAVAILABLE"
+                                agent_reason = err_text or "AI Security Analysis service is temporarily unavailable."
+                    else:
+                        grok_status = "SKIPPED"
+                        agent_reason = "Reasoning service not configured."
+                else:
+                    grok_status = "SKIPPED"
+                    agent_reason = "The deterministic security analysis produced a sufficiently conclusive baseline, so additional AI reasoning was not invoked."
+            else:
+                grok_status = "DISABLED_BY_CONFIG"
+                agent_reason = "AI Security Analysis is disabled by configuration (SECURITY_AGENT_ENABLED=false). Deterministic baseline security analysis remains active."
+        except Exception as exc:
+            self.logger.warning("Optional Grok AI security reasoning notice: %s", exc)
+            status_type = classify_llm_error(exc)
+            grok_status = status_type if status_type in ("PROVIDER_DAILY_QUOTA", "RATE_LIMITED", "SKIPPED_BUDGET") else "PROVIDER_UNAVAILABLE"
+            agent_reason = f"AI Security Analysis notice: {exc}"
+
         severity_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
         for f in findings:
             sev = f.get("severity", "MEDIUM").upper()
@@ -139,10 +269,17 @@ class SecurityAgent(BaseAgent):
             "secret_findings_count": sum(1 for f in findings if "secret" in (f.get("rule_id") or "").lower()),
             "iac_findings_count": 0,
             "quantum_findings_count": 0,
+            "grok_status": grok_status,
+            "agent_reason": agent_reason,
         }
 
         new_state = dict(state)
         new_state["findings"] = findings
         new_state["evidence"] = evidence
         new_state["security_context"] = dict(sec_context)
+        if ai_insights:
+            new_state["ai_security_insights"] = ai_insights
+        else:
+            new_state.pop("ai_security_insights", None)
         return new_state
+

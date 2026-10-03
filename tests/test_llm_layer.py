@@ -56,7 +56,7 @@ class TestFactory:
         assert "nvidia" in available_providers()
 
     def test_only_nemotron_provider_keys_are_registered(self):
-        assert set(available_providers()) == {"nemotron", "nvidia"}
+        assert set(available_providers()) == {"nemotron", "nvidia", "grok", "xai"}
 
     def test_unknown_provider_rejected(self):
         with pytest.raises(ValueError, match="Unknown LLM provider"):
@@ -105,8 +105,9 @@ class TestNemotronLLM:
             return _fake_completion("recovered")
 
         monkeypatch.setattr(llm, "_request_once", flaky)
-        assert llm.chat([{"role": "user", "content": "x"}]).content == "recovered"
-        assert calls["n"] == 3
+        with pytest.raises(LLMRateLimitError):
+            llm.chat([{"role": "user", "content": "x"}])
+        assert calls["n"] == 1, "429 rate limit failures must fail fast without retry"
 
     def test_gives_up_after_max_retries(self, monkeypatch):
         llm = self._llm()

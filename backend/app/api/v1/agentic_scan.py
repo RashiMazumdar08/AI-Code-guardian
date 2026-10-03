@@ -161,10 +161,13 @@ _STATE_KEYS = [
     "dependency_context", "threat_context", "policy_results",
     "correlated_findings", "attack_paths", "exploitability",
     "findings", "evidence", "risk_scores",
+    "ai_security_insights", "ai_business_insights", "ai_architecture_insights",
+    "ai_dependency_insights",
     "patches", "git_diff", "remediation_summary", "developer_explanation",
     "validation_report", "validation_results", "validation_confidence",
     "grounding_report",
 ]
+
 
 
 def _curated_state(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -297,11 +300,13 @@ class SecurityEnrichment(BaseModel):
     attack_paths: List[Dict[str, Any]] = Field(default_factory=list)
     exploitability: Optional[Any] = None
     security_context: Dict[str, Any] = Field(default_factory=dict)
+    ai_security_insights: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class BusinessAnalysis(BaseModel):
     violations: List[Dict[str, Any]] = Field(default_factory=list)
     results: Optional[Any] = None
+    ai_business_insights: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class ThreatAnalysis(BaseModel):
@@ -357,9 +362,14 @@ class AgenticAnalysisResult(BaseModel):
     execution: ExecutionInfo
     deterministic_context: DeterministicContext
     security_enrichment: SecurityEnrichment
+    ai_security_insights: List[Dict[str, Any]] = Field(default_factory=list)
     business_analysis: BusinessAnalysis
+    ai_business_insights: List[Dict[str, Any]] = Field(default_factory=list)
     architecture_analysis: Dict[str, Any] = Field(default_factory=dict)
+    ai_architecture_insights: List[Dict[str, Any]] = Field(default_factory=list)
     dependency_analysis: Dict[str, Any] = Field(default_factory=dict)
+    ai_dependency_insights: List[Dict[str, Any]] = Field(default_factory=list)
+
     threat_analysis: ThreatAnalysis
     policy_analysis: Dict[str, Any] = Field(default_factory=dict)
     risk_fusion: RiskFusion
@@ -439,13 +449,26 @@ def _build_agentic_analysis_result(
             "attack_paths": curated.get("attack_paths", []),
             "exploitability": curated.get("exploitability"),
             "security_context": curated.get("security_context") or {},
+            "ai_security_insights": curated.get("ai_security_insights") or [],
         },
+        ai_security_insights=curated.get("ai_security_insights") or [],
         business_analysis={
             "violations": curated.get("business_violations", []),
             "results": curated.get("business_intent_results"),
+            "ai_business_insights": curated.get("ai_business_insights") or [],
         },
-        architecture_analysis=curated.get("architecture_context") or {},
-        dependency_analysis=curated.get("dependency_context") or {},
+        ai_business_insights=curated.get("ai_business_insights") or [],
+        architecture_analysis={
+            **(curated.get("architecture_context") or {}),
+            "ai_architecture_insights": curated.get("ai_architecture_insights") or [],
+        },
+        ai_architecture_insights=curated.get("ai_architecture_insights") or [],
+        dependency_analysis={
+            **(curated.get("dependency_context") or {}),
+            "ai_dependency_insights": curated.get("ai_dependency_insights") or [],
+        },
+        ai_dependency_insights=curated.get("ai_dependency_insights") or [],
+
         threat_analysis={
             "threat_context": curated.get("threat_context") or {},
             "attack_paths": curated.get("attack_paths", []),
@@ -596,11 +619,29 @@ def _adopt_deterministic_report(report: Dict[str, Any]) -> Dict[str, Any]:
     profile = dict(report.get("repository", {}) or {})
     profile["repo_path"] = report.get("target", "") or profile.get("root", "")
 
+    from guardian.intent.ingestion.document_loader import get_workspace_id
+    from backend.app.api.v1.business_intent import get_workspace_business_result
+    ws_id = get_workspace_id(profile.get("repo_path") or profile.get("root") or report.get("scan_id"))
+    biz_result = (
+        report.get("business_intent")
+        or report.get("business_intent_results")
+        or get_workspace_business_result(ws_id)
+    )
+    if not biz_result or not biz_result.get("total_rules"):
+        if ws_id and ws_id != "unbound_workspace":
+            try:
+                from guardian.intent.engine import BusinessIntentEngine
+                engine = BusinessIntentEngine(workspace_id=ws_id)
+                biz_result = engine.run(scan_findings=raw_findings, workspace_id=ws_id)
+            except Exception as err:
+                logger.warning(f"Failed to adopt business intent analysis for workspace {ws_id}: {err}")
+
     return {
         "repository_profile": profile,
         "findings": findings,
         "evidence": evidence,
         "baseline": _deterministic_baseline(scan_result, report.get("unified_risk")),
+        "business_intent_results": biz_result or {},
     }
 
 
@@ -700,6 +741,7 @@ def _run_agentic_scan(scan_id: str, source_scan_id: str, scan_mode: str) -> None
         initial_state = create_initial_state(
             scan_id=scan_id, repository_profile=profile, scan_mode=scan_mode,
             findings=findings, evidence=evidence,
+            business_intent_results=adopted.get("business_intent_results"),
         )
         config = {"configurable": {"thread_id": scan_id}}
 
@@ -800,6 +842,24 @@ async def start_agentic_scan(request: AgenticScanRequest):
         raise HTTPException(status_code=404, detail=NO_DETERMINISTIC_SCAN_ERROR)
 
     scan_id = f"agentic_{uuid.uuid4().hex[:12]}"
+
+    try:
+        import os, sys, inspect
+        import guardian.intent.engine as g_eng
+        import guardian.agents.business.agent as g_biz
+        eng_file = getattr(g_eng, "__file__", "unknown")
+        biz_file = getattr(g_biz, "__file__", "unknown")
+        use_llm_def = inspect.signature(g_eng.BusinessIntentEngine.__init__).parameters.get("use_llm")
+        use_llm_val = use_llm_def.default if use_llm_def else "N/A"
+        logger.info(
+            "[UI-TRACE]\nscan_id=%s\nagentic_run_id=%s\nPID=%d\nexecutable=%s\ncwd=%s\n"
+            "BusinessIntentEngine_file=%s\nBusinessAgent_file=%s\nuse_llm_default=%s",
+            request.scan_id, scan_id, os.getpid(), sys.executable, os.getcwd(),
+            eng_file, biz_file, str(use_llm_val)
+        )
+    except Exception as _e:
+        logger.warning("UI-TRACE logging failed: %s", _e)
+
     _SCANS[scan_id] = {
         # "queued" is real, not fabricated: the record exists and has been
         # accepted, but the background thread hasn't begun executing yet

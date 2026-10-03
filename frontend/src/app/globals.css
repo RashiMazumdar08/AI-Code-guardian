@@ -3,57 +3,203 @@
 @tailwind utilities;
 
 /* ============================================================
-   AI CODE GUARDIAN DESIGN SYSTEM — Global Token Layer
-   Primary BG:   #0B0F19 (Deep Secure Black)
-   Card BG:      #12131a / #0c0d11
-   Border:       rgba(255,255,255,0.08)
-   Accent:       #ff5400 (Electric Orange)
-   Text Primary: #f4f4f8
-   Text Muted:   #8e8e9a
+   ACG ENTERPRISE DESIGN SYSTEM TOKENS
+   Main Workspace BG:         #F8FAFC (Subtle Light Cool Gray)
+   Sidebar & Header:          #0F172A (Modern Deep Slate)
+   Content Cards:             #FFFFFF (Pure White)
+   Card Borders & Dividers:   #E2E8F0 (Soft Light Gray)
+   Card Drop Shadow:          0 1px 3px rgba(0, 0, 0, 0.1)
+   Primary Action Blue:       #2563EB
+   Light Blue Surface:        #F1F5F9 / #EFF6FF
+   Primary Text:              #0F172A
+   Secondary Text:            #475569
+   Muted Text:                #64748B
+   Critical Red:              #EF4444
    ============================================================ */
+
+:root {
+  --acg-bg-workspace: #F8FAFC;
+  --acg-bg-sidebar: #0F172A;
+  --acg-bg-card: #FFFFFF;
+  --acg-border-soft: #E2E8F0;
+  --acg-shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --acg-blue-primary: #2563EB;
+  --acg-text-main: #0F172A;
+  --acg-text-sub: #475569;
+  --acg-text-muted: #64748B;
+  --acg-red-critical: #EF4444;
+}
 
 @layer base {
   body {
     margin: 0;
     min-height: 100vh;
-    background-color: #0B0F19;
-    color: #f4f4f8;
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
     overflow-x: hidden;
     position: relative;
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
   ::selection {
-    background-color: rgba(255, 84, 0, 0.2);
-    color: #ff5400;
+    background-color: rgba(37, 99, 235, 0.2);
+    color: #2563EB;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 84, 0, 0.3) rgba(12, 13, 17, 0.8);
+    scrollbar-color: rgba(22, 47, 99, 0.3) #EEF2F7;
   }
 
   *::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
   }
 
   *::-webkit-scrollbar-track {
-    background: rgba(12, 13, 17, 0.8);
+    background: #EEF2F7;
   }
 
   *::-webkit-scrollbar-thumb {
-    background: rgba(255, 84, 0, 0.3);
+    background: rgba(22, 47, 99, 0.3);
     border-radius: 4px;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 84, 0, 0.5);
+    background: rgba(22, 47, 99, 0.5);
   }
 }
 
 /* ============================================================
-   Background system — ambient dot grid
+   Shared Design System Components
+   ============================================================ */
+.acg-card {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+  padding: 1.25rem !important;
+}
+
+.acg-card-soft {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  padding: 1.25rem !important;
+}
+
+.acg-agent-header {
+  background-color: #F8FAFC !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  padding: 1.25rem 1.5rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.acg-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+}
+
+.acg-badge-critical {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FCA5A5;
+}
+
+.acg-badge-high {
+  background-color: #FFF7ED;
+  color: #EA580C;
+  border: 1px solid #FDBA74;
+}
+
+.acg-badge-medium {
+  background-color: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+}
+
+.acg-badge-low {
+  background-color: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+}
+
+.acg-badge-success {
+  background-color: #ECFDF5;
+  color: #059669;
+  border: 1px solid #6EE7B7;
+}
+
+.acg-btn-primary {
+  background-color: #2563EB !important;
+  color: #FFFFFF !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 1.25rem !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.15s ease-in-out !important;
+  border: 1px solid #2563EB !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.acg-btn-primary:hover {
+  background-color: #1D4ED8 !important;
+  border-color: #1D4ED8 !important;
+}
+
+.acg-btn-secondary {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1px solid #CBD5E1 !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 1.25rem !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.15s ease-in-out !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.acg-btn-secondary:hover {
+  background-color: #F8FAFC !important;
+  border-color: #94A3B8 !important;
+}
+
+.acg-btn-subtle {
+  background-color: #EFF6FF !important;
+  color: #2563EB !important;
+  border: 1px solid #BFDBFE !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 1.25rem !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.15s ease-in-out !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.acg-btn-subtle:hover {
+  background-color: #DBEAFE !important;
+}
+
+/* ============================================================
+   Background system — clean ambient grid
    ============================================================ */
 .bg-glass-orbs {
   position: fixed;
@@ -62,8 +208,8 @@
   z-index: 0;
   overflow: hidden;
   background:
-    radial-gradient(at 15% 15%, rgba(255, 84, 0, 0.05) 0px, transparent 55%),
-    radial-gradient(at 85% 85%, rgba(255, 120, 0, 0.04) 0px, transparent 55%);
+    radial-gradient(at 15% 15%, rgba(6, 43, 92, 0.04) 0px, transparent 55%),
+    radial-gradient(at 85% 85%, rgba(0, 100, 216, 0.04) 0px, transparent 55%);
 }
 
 .orb {
@@ -72,78 +218,145 @@
 
 /* Dot-grid overlay helper */
 .cyber-dot-grid {
-  background-image: radial-gradient(rgba(255, 84, 0, 0.12) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(6, 43, 92, 0.06) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
 /* ============================================================
-   Panel / Card Components
+   Panel / Card Components — Navy Enterprise UI System
    ============================================================ */
 
 /* Main sidebar & drawer panels */
 .glass-panel {
-  background: rgba(12, 13, 17, 0.92) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.07) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+  color: #0F172A !important;
 }
 
-/* Secondary card component */
+/* Major card component */
 .glass-card {
-  background: rgba(18, 19, 26, 0.85) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.07) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
   transition: all 0.2s ease-in-out !important;
+  color: #0F172A !important;
 }
 
 .glass-card:hover {
-  background: rgba(18, 19, 26, 0.95) !important;
-  border-color: rgba(255, 84, 0, 0.2) !important;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4) !important;
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* ============================================================
-   Input Fields
-   ============================================================ */
+/* Input Fields */
 .glass-input {
-  background: rgba(9, 10, 13, 0.95) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  color: #f4f4f8 !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
   transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
+/* ============================================================
+   ACG TYPOGRAPHY SYSTEM UTILITIES
+   ============================================================ */
+
+.acg-page-title {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: #0F172A !important;
+}
+
+@media (min-width: 768px) {
+  .acg-page-title {
+    font-size: 32px !important;
+  }
+}
+
+.acg-section-title {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  color: #0F172A !important;
+}
+
+@media (min-width: 768px) {
+  .acg-section-title {
+    font-size: 22px !important;
+  }
+}
+
+.acg-card-title {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  color: #0F172A !important;
+}
+
+.acg-body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+  color: #475569 !important;
+}
+
+.acg-technical-label {
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  color: #64748B !important;
+}
+
+.acg-metric-number {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: #0F172A !important;
+}
+
+@media (min-width: 768px) {
+  .acg-metric-number {
+    font-size: 28px !important;
+  }
+}
+
 .glass-input:focus {
-  background: #090a0d !important;
-  border-color: #ff5400 !important;
-  box-shadow: 0 0 0 2px rgba(255, 84, 0, 0.2) !important;
+  background: #FFFFFF !important;
+  border-color: #0070F2 !important;
+  box-shadow: 0 0 0 2px rgba(0, 112, 242, 0.2) !important;
   outline: none !important;
 }
 
 /* ============================================================
-   Primary Action Button — Electric Orange
+   Primary Action Button — Enterprise Action Blue
    ============================================================ */
 .glass-button {
-  background: #ff5400 !important;
-  border: 1px solid rgba(255, 100, 0, 0.4) !important;
-  box-shadow: 0 4px 14px rgba(255, 84, 0, 0.3) !important;
-  color: #000 !important;
-  font-weight: 700 !important;
+  background: #0064D8 !important;
+  border: 1px solid #0064D8 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
   transition: all 0.2s ease-in-out !important;
 }
 
 .glass-button:hover {
-  background: #ff6a1a !important;
-  box-shadow: 0 6px 20px rgba(255, 84, 0, 0.45) !important;
+  background: #0055B8 !important;
+  border-color: #0055B8 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 100, 216, 0.2) !important;
   transform: translateY(-1px);
 }
 
 .glass-button:disabled {
-  background: rgba(255, 84, 0, 0.3) !important;
+  background: #94A3B8 !important;
+  border-color: #94A3B8 !important;
   box-shadow: none !important;
   transform: none !important;
   cursor: not-allowed !important;
@@ -153,11 +366,10 @@
    Banner / Hero Strip
    ============================================================ */
 .glass-banner {
-  background: rgba(18, 19, 26, 0.8) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  background: #EFF6FF !important;
+  border: 1px solid #BFDBFE !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  color: #1E40AF !important;
 }
 
 /* ============================================================
@@ -202,3 +414,46 @@
 pre, code {
   font-family: 'Roboto Mono', 'JetBrains Mono', 'Fira Code', monospace !important;
 }
+
+/* ============================================================
+   LangGraph Execution Graph Blinking White Nodes
+   ============================================================ */
+@keyframes node-blink-white {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(255, 255, 255, 0.95), 0 0 8px rgba(255, 255, 255, 0.8);
+    border-color: #FFFFFF;
+    background-color: #FFFFFF;
+  }
+  50% {
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.4), 0 0 2px rgba(255, 255, 255, 0.2);
+    border-color: #CBD5E1;
+    background-color: #F8FAFC;
+  }
+}
+
+.animate-node-blink-white {
+  animation: node-blink-white 1.6s ease-in-out infinite;
+}
+
+/* ============================================================
+   Mind Map & Graph Blinking White Edges
+   ============================================================ */
+@keyframes edge-blink-white {
+  0%, 100% {
+    stroke: #FFFFFF !important;
+    stroke-opacity: 1 !important;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) !important;
+  }
+  50% {
+    stroke: #94A3B8 !important;
+    stroke-opacity: 0.35 !important;
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3)) !important;
+  }
+}
+
+.animate-edge-blink-white path,
+.react-flow__edge-path.animate-edge-blink-white {
+  animation: edge-blink-white 1.6s ease-in-out infinite !important;
+}
+
+

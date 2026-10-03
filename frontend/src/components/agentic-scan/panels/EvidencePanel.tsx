@@ -23,12 +23,7 @@ export function EvidencePanel({
   result, focusFindingId, onViewFinding,
 }: {
   result: AgenticAnalysisResult | null;
-  /** Deep-link target: when set, the matching finding's chain row is
-   * scrolled into view and highlighted -- see app/page.tsx's
-   * viewFindingTrace. */
   focusFindingId?: string | null;
-  /** Deep-link back to Security: clicking a finding's rule_id badge below
-   * opens that finding's drawer there. */
   onViewFinding?: (findingId: string) => void;
 }) {
   const focusRowRef = useRef<HTMLDivElement | null>(null);
@@ -51,16 +46,13 @@ export function EvidencePanel({
   );
 
   if (evidence.length === 0) {
-    return <div className="text-[11px] font-mono text-[#5c5c68] text-center py-10">No evidence objects generated yet.</div>;
+    return <div className="text-[11px] font-mono text-slate-500 text-center py-10">No evidence objects generated yet.</div>;
   }
 
   return (
     <div className="space-y-4">
-      {/* Deterministic Finding -> Evidence -> Agent -> Risk -> Patch chain,
-          one row per finding -- proves the agentic layer is grounded in
-          real evidence rather than hallucinating. */}
-      <div className="rounded-lg bg-[#0c0d11] border border-white/8 p-3">
-        <div className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a] mb-2">Evidence Traceability</div>
+      <div className="rounded-lg bg-white border border-[#DCE5F0] shadow-sm p-3">
+        <div className="text-[9px] font-mono uppercase tracking-wider text-slate-500 mb-2">Evidence Traceability</div>
         <div className="space-y-1.5">
           {findings.map((f) => {
             const evIds = f.evidence_ids && f.evidence_ids.length > 0 ? f.evidence_ids : (f.evidence_id ? [f.evidence_id] : []);
@@ -73,36 +65,36 @@ export function EvidencePanel({
                 key={f.finding_id}
                 ref={isFocused ? focusRowRef : undefined}
                 className={`flex items-center gap-1.5 flex-wrap text-[9.5px] font-mono rounded px-1.5 py-1 -mx-1.5 transition-colors ${
-                  isFocused ? "bg-violet-500/10 ring-1 ring-violet-500/40" : ""
+                  isFocused ? "bg-blue-50 ring-1 ring-blue-300" : ""
                 }`}
               >
                 {onViewFinding ? (
                   <button
                     onClick={() => onViewFinding(f.finding_id)}
-                    className="px-1.5 py-0.5 rounded bg-white/6 text-[#f4f4f8] font-semibold hover:bg-[#ff5400]/15 hover:text-[#ff5400] transition-colors cursor-pointer"
+                    className="px-1.5 py-0.5 rounded bg-slate-100 text-blue-600 font-semibold hover:bg-blue-100 transition-colors cursor-pointer border border-[#DCE5F0]"
                     title="View this finding in Security"
                   >
                     {f.rule_id}
                   </button>
                 ) : (
-                  <span className="px-1.5 py-0.5 rounded bg-white/6 text-[#f4f4f8] font-semibold">{f.rule_id}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[#111827] font-semibold border border-[#DCE5F0]">{f.rule_id}</span>
                 )}
-                <ArrowRight className="w-2.5 h-2.5 text-[#5c5c68]" />
-                <span className="px-1.5 py-0.5 rounded bg-white/6 text-[#8e8e9a]">{evIds.join(", ") || "—"}</span>
-                <ArrowRight className="w-2.5 h-2.5 text-[#5c5c68]" />
-                <span className="px-1.5 py-0.5 rounded bg-white/6 text-[#8e8e9a]">Security Agent</span>
-                <ArrowRight className="w-2.5 h-2.5 text-[#5c5c68]" />
-                <span className={`px-1.5 py-0.5 rounded ${correlated ? "bg-sky-500/12 text-sky-400" : "bg-white/6 text-[#5c5c68]"}`}>
+                <ArrowRight className="w-2.5 h-2.5 text-slate-400" />
+                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-[#DCE5F0]">{evIds.join(", ") || "—"}</span>
+                <ArrowRight className="w-2.5 h-2.5 text-slate-400" />
+                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-[#DCE5F0]">Security Agent</span>
+                <ArrowRight className="w-2.5 h-2.5 text-slate-400" />
+                <span className={`px-1.5 py-0.5 rounded border ${correlated ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-slate-100 text-slate-400 border-slate-200"}`}>
                   {correlated ? "correlated" : "not correlated"}
                 </span>
-                <ArrowRight className="w-2.5 h-2.5 text-[#5c5c68]" />
-                <span className={`px-1.5 py-0.5 rounded ${findingPatches.length > 0 ? "bg-[#ff5400]/12 text-[#ff5400]" : "bg-white/6 text-[#5c5c68]"}`}>
+                <ArrowRight className="w-2.5 h-2.5 text-slate-400" />
+                <span className={`px-1.5 py-0.5 rounded border ${findingPatches.length > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-100 text-slate-400 border-slate-200"}`}>
                   {findingPatches.length > 0 ? `${findingPatches.length} patch(es)` : "no patch"}
                 </span>
                 {findingPatches.length > 0 && (
                   <>
-                    <ArrowRight className="w-2.5 h-2.5 text-[#5c5c68]" />
-                    <span className={`px-1.5 py-0.5 rounded ${validated ? "bg-emerald-500/12 text-emerald-400" : "bg-white/6 text-[#5c5c68]"}`}>
+                    <ArrowRight className="w-2.5 h-2.5 text-slate-400" />
+                    <span className={`px-1.5 py-0.5 rounded border ${validated ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-400 border-slate-200"}`}>
                       {validated ? "validated" : "not validated"}
                     </span>
                   </>
@@ -113,18 +105,18 @@ export function EvidencePanel({
         </div>
       </div>
 
-      <div className="rounded-lg bg-[#0c0d11] border border-white/8 overflow-x-auto">
+      <div className="rounded-lg bg-white border border-[#DCE5F0] shadow-sm overflow-x-auto">
         <table className="w-full text-[10px] font-mono">
           <thead>
-            <tr className="text-[#8e8e9a] border-b border-white/8">
-              <th className="text-left px-3 py-1.5">Evidence ID</th>
-              <th className="text-left px-3 py-1.5">Source (engine)</th>
-              <th className="text-left px-3 py-1.5">File</th>
-              <th className="text-left px-3 py-1.5">Line</th>
-              <th className="text-left px-3 py-1.5">Rule</th>
-              <th className="text-left px-3 py-1.5">Finding ID</th>
-              <th className="text-left px-3 py-1.5">Confidence</th>
-              <th className="text-left px-3 py-1.5">Consumed By</th>
+            <tr className="text-slate-500 border-b border-[#DCE5F0] bg-slate-50">
+              <th className="text-left px-3 py-1.5 font-semibold">Evidence ID</th>
+              <th className="text-left px-3 py-1.5 font-semibold">Source (engine)</th>
+              <th className="text-left px-3 py-1.5 font-semibold">File</th>
+              <th className="text-left px-3 py-1.5 font-semibold">Line</th>
+              <th className="text-left px-3 py-1.5 font-semibold">Rule</th>
+              <th className="text-left px-3 py-1.5 font-semibold">Finding ID</th>
+              <th className="text-left px-3 py-1.5 font-semibold">Confidence</th>
+              <th className="text-left px-3 py-1.5 font-semibold">Consumed By</th>
             </tr>
           </thead>
           <tbody>
@@ -137,21 +129,21 @@ export function EvidencePanel({
               if (patchesCitingThis.length > 0) consumers.push("Patch Generation");
               if (validatedCitingThis) consumers.push("Validation");
               return (
-                <tr key={e.evidence_id} className="border-b border-white/5 last:border-0">
-                  <td className="px-3 py-1.5 text-[#f4f4f8] font-semibold">{e.evidence_id}</td>
-                  <td className="px-3 py-1.5 text-[#8e8e9a]">{e.engine}</td>
-                  <td className="px-3 py-1.5 text-[#8e8e9a] max-w-[180px] truncate">{e.file}</td>
-                  <td className="px-3 py-1.5 text-[#8e8e9a]">{e.line}</td>
-                  <td className="px-3 py-1.5 text-[#8e8e9a]">{finding?.rule_id || "—"}</td>
-                  <td className="px-3 py-1.5 text-[#8e8e9a]">{e.finding_id}</td>
-                  <td className="px-3 py-1.5 text-[#8e8e9a]">{finding?.confidence ?? "—"}</td>
+                <tr key={e.evidence_id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                  <td className="px-3 py-1.5 text-[#111827] font-semibold">{e.evidence_id}</td>
+                  <td className="px-3 py-1.5 text-slate-600">{e.engine}</td>
+                  <td className="px-3 py-1.5 text-slate-600 max-w-[180px] truncate">{e.file}</td>
+                  <td className="px-3 py-1.5 text-slate-600">{e.line}</td>
+                  <td className="px-3 py-1.5 text-slate-600">{finding?.rule_id || "—"}</td>
+                  <td className="px-3 py-1.5 text-slate-600">{e.finding_id}</td>
+                  <td className="px-3 py-1.5 text-slate-600">{finding?.confidence ?? "—"}</td>
                   <td className="px-3 py-1.5">
                     {consumers.length === 0 ? (
-                      <span className="text-[#5c5c68]">—</span>
+                      <span className="text-slate-400">—</span>
                     ) : (
                       <div className="flex flex-wrap gap-1">
                         {consumers.map((c) => (
-                          <span key={c} className="px-1.5 py-0.5 rounded bg-emerald-500/12 text-emerald-400 text-[9px]">✓ {c}</span>
+                          <span key={c} className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-semibold">✓ {c}</span>
                         ))}
                       </div>
                     )}

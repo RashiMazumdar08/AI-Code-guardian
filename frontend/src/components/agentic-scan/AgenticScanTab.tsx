@@ -39,18 +39,18 @@ const SUB_TABS = [
 type SubTab = typeof SUB_TABS[number]["id"];
 
 const STATUS_LEGEND: { status: AgentStatus; color: string }[] = [
-  { status: "WAITING", color: "bg-[#8e8e9a]" },
-  { status: "RUNNING", color: "bg-[#ff5400]" },
-  { status: "COMPLETED", color: "bg-emerald-400" },
-  { status: "FAILED", color: "bg-red-400" },
-  { status: "SKIPPED", color: "bg-[#5c5c68]" },
+  { status: "WAITING", color: "bg-slate-400" },
+  { status: "RUNNING", color: "bg-blue-600" },
+  { status: "COMPLETED", color: "bg-emerald-600" },
+  { status: "FAILED", color: "bg-rose-600" },
+  { status: "SKIPPED", color: "bg-slate-300" },
 ];
 
 function edgeColor(sourceStatus?: AgentStatus, targetStatus?: AgentStatus): string {
-  if (targetStatus === "FAILED") return "rgba(239,68,68,0.7)"; // red -- edge leads to a failed node
-  if (sourceStatus === "COMPLETED" && targetStatus === "COMPLETED") return "rgba(16,185,129,0.5)"; // solid green
-  if (sourceStatus === "COMPLETED" && targetStatus === "SKIPPED") return "rgba(140,140,150,0.4)";
-  return "rgba(255,255,255,0.18)"; // default -- waiting / running
+  if (targetStatus === "FAILED") return "rgba(244,63,94,0.95)"; // bright rose
+  if (sourceStatus === "COMPLETED" && targetStatus === "COMPLETED") return "rgba(52,211,153,0.95)"; // bright emerald
+  if (sourceStatus === "COMPLETED" && targetStatus === "SKIPPED") return "rgba(148,163,184,0.6)";
+  return "rgba(96,165,250,0.85)"; // vibrant sky blue for visible flow
 }
 
 function formatTimestamp(unixSeconds?: number): string {
@@ -226,14 +226,14 @@ export default function AgenticScanTab({
   return (
     <div className="space-y-4">
       {/* Header / smart control */}
-      <div className="rounded-xl bg-[#12131a] border border-white/8 p-5">
+      <div className="rounded-xl bg-white border border-[#DCE5F0] p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-2">
-          <GitBranch className="w-4 h-4 text-[#ff5400]" />
-          <h2 className="text-sm font-mono font-bold text-[#f4f4f8] tracking-wide">Agentic Analysis</h2>
+          <GitBranch className="w-4 h-4 text-blue-600" />
+          <h2 className="text-sm font-mono font-bold text-[#111827] tracking-wide">Agentic Analysis</h2>
           <div className="relative" onMouseEnter={() => setInfoOpen(true)} onMouseLeave={() => setInfoOpen(false)}>
-            <Info className="w-3.5 h-3.5 text-[#5c5c68] hover:text-[#8e8e9a] cursor-help" />
+            <Info className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
             {infoOpen && (
-              <div className="absolute left-0 top-5 z-20 w-80 rounded-lg bg-[#0c0d11] border border-white/10 p-3 text-[9.5px] font-mono text-[#8e8e9a] leading-relaxed shadow-xl">
+              <div className="absolute left-0 top-5 z-20 w-80 rounded-lg bg-white border border-[#DCE5F0] p-3 text-[9.5px] font-mono text-slate-600 leading-relaxed shadow-xl">
                 The deterministic scanner (IDE Workspace) is the source of technical truth. The agentic layer
                 (LangGraph multi-agent workflow) reasons over those findings to produce business violations,
                 attack paths, risk scores, and validated patches. It never re-clones, re-scans, or
@@ -243,46 +243,44 @@ export default function AgenticScanTab({
             )}
           </div>
         </div>
-        <p className="text-[10px] font-mono text-[#8e8e9a] mb-4">
+        <p className="text-[10px] font-mono text-slate-500 mb-4">
           Agentic analysis runs on top of deterministic scan results. It does not re-detect vulnerabilities.
           It enriches findings with business impact, threat modeling, and automated remediation.
         </p>
 
-        {/* Deterministic-first gate: exactly one of these two states renders,
-            per "The Agentic Scan must ALWAYS run on top of deterministic scan
-            results. It is NEVER an independent scan." */}
+        {/* Deterministic-first gate */}
         {!scansChecked ? (
-          <div className="flex items-center gap-2 text-[10px] font-mono text-[#5c5c68] py-4">
+          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500 py-4">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking for a deterministic scan…
           </div>
         ) : !hasDeterministicScans ? (
-          <div className="rounded-lg border border-red-500/25 bg-red-500/5 p-4">
+          <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-4">
             <div className="flex items-center gap-2 mb-1.5">
-              <ShieldOff className="w-4 h-4 text-red-400" />
-              <span className="text-[11px] font-mono font-bold text-red-400 uppercase tracking-wide">
+              <ShieldOff className="w-4 h-4 text-rose-600" />
+              <span className="text-[11px] font-mono font-bold text-rose-700 uppercase tracking-wide">
                 No Deterministic Scan Available
               </span>
             </div>
-            <p className="text-[10px] font-mono text-[#8e8e9a] mb-3 leading-relaxed">
+            <p className="text-[10px] font-mono text-slate-600 mb-3 leading-relaxed">
               The agentic analysis layer requires a deterministic scan as its source of truth. Run a
               deterministic scan in IDE Workspace first, then return here for agentic analysis.
             </p>
             <button
               onClick={() => onGoToWorkspace?.()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wide bg-[#ff5400] text-[#0c0d11] hover:bg-[#ff6a20] transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wide bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-xs"
             >
               Go to IDE Workspace and Run Scan <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
-          <div className="rounded-lg border border-sky-500/25 bg-sky-500/5 p-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-4">
             <div className="flex items-center gap-2 mb-1.5">
-              <CheckCircle2 className="w-4 h-4 text-sky-400" />
-              <span className="text-[11px] font-mono font-bold text-sky-400 uppercase tracking-wide">
+              <CheckCircle2 className="w-4 h-4 text-blue-600" />
+              <span className="text-[11px] font-mono font-bold text-blue-700 uppercase tracking-wide">
                 Deterministic Scan Found
               </span>
             </div>
-            <p className="text-[10px] font-mono text-[#8e8e9a] mb-3">
+            <p className="text-[10px] font-mono text-slate-600 mb-3">
               {selectedScan
                 ? `Scan from ${formatTimestamp(selectedScan.created_at)} — ${selectedScan.scan?.total_findings ?? "?"} findings`
                 : "Select a deterministic scan below."}
@@ -294,7 +292,7 @@ export default function AgenticScanTab({
                 value={selectedOption}
                 onChange={(e) => setSelectedOption(e.target.value)}
                 disabled={isRunning || scansLoading}
-                className="flex-1 min-w-[280px] bg-[#0c0d11] border border-white/10 rounded-lg px-3 py-2 text-[11px] font-mono text-[#f4f4f8] focus:outline-none focus:border-[#ff5400]/50"
+                className="flex-1 min-w-[280px] bg-white border border-[#DCE5F0] rounded-lg px-3 py-2 text-[11px] font-mono text-[#111827] focus:outline-none focus:border-blue-500 shadow-xs"
               >
                 {existingScans.map((s) => (
                   <option key={s.scan_id} value={s.scan_id}>
@@ -306,7 +304,7 @@ export default function AgenticScanTab({
                 onClick={loadExistingScans}
                 disabled={scansLoading}
                 title="Refresh scan list"
-                className="p-2 rounded-lg border border-white/10 text-[#8e8e9a] hover:text-[#f4f4f8] hover:bg-white/6 disabled:opacity-40"
+                className="p-2 rounded-lg border border-[#DCE5F0] text-slate-600 hover:text-[#111827] hover:bg-slate-100 disabled:opacity-40"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${scansLoading ? "animate-spin" : ""}`} />
               </button>
@@ -314,7 +312,7 @@ export default function AgenticScanTab({
                 value={scanMode}
                 onChange={(e) => setScanMode(e.target.value as "full_scan" | "security_only")}
                 disabled={isRunning}
-                className="bg-[#0c0d11] border border-white/10 rounded-lg px-2.5 py-2 text-[10px] font-mono text-[#8e8e9a] focus:outline-none"
+                className="bg-white border border-[#DCE5F0] rounded-lg px-2.5 py-2 text-[10px] font-mono text-slate-600 focus:outline-none focus:border-blue-500 shadow-xs"
               >
                 <option value="full_scan">full_scan (all agents)</option>
                 <option value="security_only">security_only (core chain)</option>
@@ -322,7 +320,7 @@ export default function AgenticScanTab({
               <button
                 onClick={handleStart}
                 disabled={isRunning || !selectedOption}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wide bg-[#ff5400] text-[#0c0d11] hover:bg-[#ff6a20] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wide bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
               >
                 {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
                 {isRunning ? "Running…" : "RUN AGENTIC ANALYSIS"}
@@ -331,7 +329,7 @@ export default function AgenticScanTab({
                 <button
                   onClick={cancel}
                   title="Cancel this run -- stops at the next agent boundary, already-completed agents' results are kept"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wide bg-white/6 text-[#8e8e9a] border border-white/10 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/25 transition-all"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wide bg-white text-slate-600 border border-[#DCE5F0] hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition-all shadow-xs"
                 >
                   <ShieldOff className="w-3.5 h-3.5" /> Cancel
                 </button>
@@ -341,24 +339,23 @@ export default function AgenticScanTab({
         )}
 
         {error && (
-          <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-red-400">
+          <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-rose-600">
             <AlertTriangle className="w-3.5 h-3.5" /> {error}
           </div>
         )}
         {workflowStatus === "completed" && (
-          <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-emerald-400">
+          <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-emerald-600">
             <CheckCircle2 className="w-3.5 h-3.5" /> Agentic analysis completed — scan_id: {scanId}
           </div>
         )}
         {workflowStatus === "cancelled" && (
-          <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-amber-400">
+          <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-amber-600">
             <ShieldOff className="w-3.5 h-3.5" /> Agentic analysis cancelled — results from agents that completed before cancellation are kept below.
           </div>
         )}
       </div>
 
-      {/* Intelligence Dashboard -- replaces the deterministic triage funnel
-          on this tab only (that funnel stays in IDE Workspace). */}
+      {/* Intelligence Dashboard */}
       <IntelligenceDashboard
         state={state}
         nodeRuntime={nodeRuntime}
@@ -368,23 +365,18 @@ export default function AgenticScanTab({
 
       {/* Live graph */}
       {graph.nodes.length > 0 && (
-        <div className="rounded-xl bg-[#12131a] border border-white/8 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-[#8e8e9a]">Live LangGraph Execution Graph</span>
+        <div className="rounded-xl bg-[#062B5C] border border-[#174A85] shadow-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-[#041F42] border-b border-[#174A85]">
+            <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-white">Live LangGraph Execution Graph</span>
             <div className="flex items-center gap-3">
               {STATUS_LEGEND.map((s) => (
-                <span key={s.status} className="flex items-center gap-1 text-[8.5px] font-mono text-[#8e8e9a]">
+                <span key={s.status} className="flex items-center gap-1 text-[8.5px] font-mono font-bold text-[#D9E8F8]">
                   <span className={`w-1.5 h-1.5 rounded-full ${s.color}`} /> {s.status}
                 </span>
               ))}
             </div>
           </div>
-          {/* height/minHeight meet the spec's 300px-tall minimum; onInit
-              re-runs fitView once the panel has really mounted and
-              measured -- the standard guard against a ReactFlow instance
-              that measured a zero-size viewport at first mount (e.g. if it
-              was ever mounted while its container was display:none). */}
-          <div style={{ height: 320, minHeight: 300, width: "100%" }}>
+          <div style={{ height: 320, minHeight: 300, width: "100%", backgroundColor: "#041F42" }}>
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -397,12 +389,12 @@ export default function AgenticScanTab({
               onInit={(instance) => { requestAnimationFrame(() => instance.fitView({ padding: 0.15 })); }}
               proOptions={{ hideAttribution: true }}
               colorMode="dark"
-              className="!bg-transparent"
+              className="!bg-[#041F42]"
             >
-              <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="rgba(255,255,255,0.06)" />
+              <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="rgba(255, 255, 255, 0.22)" />
               <Controls
                 showInteractive={false}
-                className="!bg-[#0c0d11]/90 !border !border-white/10 !rounded-lg !shadow-lg [&>button]:!bg-transparent [&>button]:!border-white/10 [&>button]:!text-[#8e8e9a] [&>button:hover]:!text-[#f4f4f8] [&>button:hover]:!bg-white/6"
+                className="!bg-[#062B5C] !border !border-[#174A85] !rounded-lg !shadow-md [&>button]:!bg-[#0A3A78] [&>button]:!border-[#174A85] [&>button]:!text-white [&>button:hover]:!bg-[#0070F2]"
               />
             </ReactFlow>
           </div>
@@ -411,8 +403,8 @@ export default function AgenticScanTab({
 
       {/* Sub-tab panels */}
       {graph.nodes.length > 0 && (
-        <div className="rounded-xl bg-[#12131a] border border-white/8 p-4">
-          <div className="flex items-center gap-1 mb-4 border-b border-white/8 pb-2 overflow-x-auto">
+        <div className="rounded-xl bg-white border border-[#DCE5F0] shadow-sm p-4">
+          <div className="flex items-center gap-1 mb-4 border-b border-[#DCE5F0] pb-2 overflow-x-auto">
             {SUB_TABS.map((t) => {
               const Icon = t.icon;
               const active = activeSubTab === t.id;
@@ -421,7 +413,7 @@ export default function AgenticScanTab({
                   key={t.id}
                   onClick={() => setActiveSubTab(t.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-semibold whitespace-nowrap transition-all ${
-                    active ? "bg-[#ff5400]/12 text-[#ff5400]" : "text-[#8e8e9a] hover:text-[#f4f4f8] hover:bg-white/6"
+                    active ? "bg-blue-50 text-blue-600 border border-blue-200" : "text-slate-600 hover:text-[#111827] hover:bg-slate-100"
                   }`}
                 >
                   <Icon className="w-3 h-3" /> {t.label}
@@ -431,7 +423,7 @@ export default function AgenticScanTab({
           </div>
 
           {isRunning && workflowStatus === "running" && activeSubTab !== "execution" && (
-            <div className="mb-3 text-[9px] font-mono text-[#5c5c68] flex items-center gap-1.5">
+            <div className="mb-3 text-[9px] font-mono text-slate-500 flex items-center gap-1.5">
               <Loader2 className="w-3 h-3 animate-spin" /> Analysis still running — this panel fills in as agents complete.
             </div>
           )}
@@ -447,8 +439,8 @@ export default function AgenticScanTab({
       )}
 
       {graph.nodes.length === 0 && workflowStatus === "idle" && hasDeterministicScans && (
-        <div className="rounded-xl bg-[#12131a] border border-white/8 p-10 text-center">
-          <div className="text-[11px] font-mono text-[#5c5c68]">
+        <div className="rounded-xl bg-white border border-[#DCE5F0] shadow-sm p-10 text-center">
+          <div className="text-[11px] font-mono text-slate-500">
             Pick an existing deterministic scan above and run agentic analysis to see the live multi-agent workflow.
           </div>
         </div>

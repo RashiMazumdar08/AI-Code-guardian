@@ -175,7 +175,7 @@ export default function VSCodeEditor({
         }}
         loading={
           <div className="flex items-center justify-center h-full gap-3 text-slate-400" style={{ background: "#1e1e1e" }}>
-            <Loader2 className="w-5 h-5 animate-spin text-[#ff5400]" />
+            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
             <span className="text-[11px] font-mono">Loading editor...</span>
           </div>
         }
